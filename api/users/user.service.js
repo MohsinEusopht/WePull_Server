@@ -156,7 +156,21 @@ module.exports = {
     getExpenses: (company_id) => {
         return new Promise((resolov, reject) => {
             pool.query(
-                `SELECT e.expense_id,e.expense_date,e.description,e.total_amount,e.is_paid,e.tax,e.paid_amount,e.payment_date,a.name as 'account_name',s.name as 'supplier_name',cat1.category_name as 'category_1',cat2.category_name as 'category_2',e.attachments FROM \`expenses\` e LEFT JOIN accounts a ON a.id = e.account_id LEFT JOIN suppliers s ON s.id = e.supplier_id LEFT JOIN categories cat1 ON cat1.id = e.category1_id LEFT JOIN categories cat2 ON cat2.id = e.category2_id WHERE e.company_id = ?`, [company_id],
+                `SELECT e.expense_id,e.expense_date,e.description,e.total_amount,e.is_paid,e.tax,e.paid_amount,e.payment_date,a.name as 'account_name',s.name as 'supplier_name',cat1.category_name as 'category_1',cat2.category_name as 'category_2',e.attachments FROM expenses e LEFT JOIN accounts a ON a.id = e.account_id LEFT JOIN suppliers s ON s.id = e.supplier_id LEFT JOIN categories cat1 ON cat1.id = e.category1_id LEFT JOIN categories cat2 ON cat2.id = e.category2_id WHERE e.company_id = ?`, [company_id],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    getExpensesByCategoryID: (company_id, category_id) => {
+        console.log(`SELECT e.expense_id,e.expense_date,e.description,e.total_amount,e.is_paid,e.tax,e.paid_amount,e.payment_date,e.account_id,a.name as 'account_name',e.supplier_id,s.name as 'supplier_name',e.category1_id,cat1.category_name as 'category_1',e.category2_id,cat2.category_name as 'category_2',e.attachments FROM expenses e LEFT JOIN accounts a ON a.id = e.account_id LEFT JOIN suppliers s ON s.id = e.supplier_id LEFT JOIN categories cat1 ON cat1.id = e.category1_id LEFT JOIN categories cat2 ON cat2.id = e.category2_id WHERE e.company_id = ${company_id} AND e.category1_id = ${category_id} OR e.company_id = ${company_id} AND e.category2_id = ${category_id}`)
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `SELECT e.expense_id,e.expense_date,e.description,e.total_amount,e.is_paid,e.tax,e.paid_amount,e.payment_date,e.account_id,a.name as 'account_name',e.supplier_id,s.name as 'supplier_name',e.category1_id,cat1.category_name as 'category_1',e.category2_id,cat2.category_name as 'category_2',e.attachments FROM expenses e LEFT JOIN accounts a ON a.id = e.account_id LEFT JOIN suppliers s ON s.id = e.supplier_id LEFT JOIN categories cat1 ON cat1.id = e.category1_id LEFT JOIN categories cat2 ON cat2.id = e.category2_id WHERE e.company_id = ? AND e.category1_id = ? OR e.company_id = ? AND e.category2_id = ?`, [company_id, category_id, company_id, category_id],
                 (error, results, fields) => {
                     if (error) {
                         return reject(error);

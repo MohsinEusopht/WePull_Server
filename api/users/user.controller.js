@@ -17,6 +17,7 @@ const {
     getSuppliers,
     getUsers,
     getExpenses,
+    getExpensesByCategoryID,
     getAttachables,
     disableAllCompany,
     activateCompany,
@@ -297,6 +298,28 @@ module.exports = {
                 status: 200,
                 message: "Expenses",
                 data: expenses
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    getExpensesByCategoryID: async (req, res) => {
+        try {
+            const company_id = req.params.company_id;
+            const category_id = req.params.category_id;
+            console.log("company_id", company_id);
+            console.log("category_id", category_id);
+
+            const categories = await getExpensesByCategoryID(company_id, category_id);
+            console.log("categories", categories);
+
+            return res.json({
+                status: 200,
+                message: "Categories",
+                data: categories
             });
         } catch (e) {
             return res.json({

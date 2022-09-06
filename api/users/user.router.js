@@ -9,6 +9,7 @@ const {
     getLoginToken,
     getUserCategories,
     getExpenses,
+    getExpensesByCategoryID,
     getAttachables,
     getCompanies,
     getCategories,
@@ -44,6 +45,7 @@ router.get("/getCategories/:company_id", validateAdminPermission, getCategories)
 router.get("/getCategoriesForDashboard/:company_id", validateAdminPermission, getCategoriesForDashboard);
 router.get("/getCategoriesForUserCreation/:company_id", validateAdminPermission, getCategoriesForUserCreation);
 
+
 //Get suppliers for supplier page
 router.get("/getSuppliers/:company_id", validateAdminPermission, getSuppliers);
 
@@ -52,6 +54,9 @@ router.get("/getUsers/:company_id", validateAdminPermission, getUsers);
 
 //Get expenses for expense page
 router.get('/getExpenses/:company_type/:company_id', getExpenses)
+
+router.get('/getExpensesByCategoryID/:company_id/:category_id', getExpensesByCategoryID);
+
 router.get('/getAttachables/:company_id', getAttachables);
 
 //activate company

@@ -484,6 +484,7 @@ async function getAllAttachableImage(access_token,companyID,attachment_id) {
                 let result = convert.xml2json(body, {compact: true, spaces: 4});
                 resolve(result);
             } else {
+                console.log("error in request", error)
                 reject(error);
             }
         });
@@ -961,13 +962,15 @@ async function refreshToken(company_id) {
         await oauthClient
             .refreshUsingToken(company[0].refresh_token)
             .then(async function (authResponse) {
-                console.log(`The Refresh Token is  ${JSON.stringify(authResponse.getJson())}`);
+                // console.log(`The Refresh Token is  ${JSON.stringify(authResponse.getJson())}`);
                 oauth2_token_json = JSON.stringify(authResponse.getJson(), null, 2);
                 let array = JSON.parse(oauth2_token_json);
-                qb_access_token = array.access_token;
-                qb_refresh_token = array.refresh_token;
-                qb_id_token = array.id_token;
-                qb_expire_at = array.x_refresh_token_expires_in;
+
+                console.log("The Refresh Token is", array);
+                let qb_access_token = array.access_token;
+                let qb_refresh_token = array.refresh_token;
+                let qb_id_token = array.id_token;
+                let qb_expire_at = array.x_refresh_token_expires_in;
 
                 let now = new Date();
                 let time = now.getTime();
@@ -975,15 +978,15 @@ async function refreshToken(company_id) {
                 let expire_at = time.toString().substring(0,10);
 
                 // const updateRefreshTokenResult = await updateRefreshToken(email, qb_access_token, qb_refresh_token, expire_at);
-                const updateCompanyTokenResult = await updateQuickbooksCompanyToken(company[0].tenant_id, qb_id_token, qb_access_token, qb_refresh_token, expire_at);
+                const updateCompanyTokenResult = await updateQuickbooksCompanyToken(company[0].tenant_id, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
                 console.log(updateCompanyTokenResult);
 
                 tokenSet = {
                     token_type: 'Bearer',
                     access_token: qb_access_token,
-                    expires_in: expire_at,
+                    expires_in: qb_expire_at,
                     refresh_token: qb_refresh_token,
-                    x_refresh_token_expires_in: expire_at,
+                    x_refresh_token_expires_in: qb_expire_at,
                     realmId: company[0].tenant_id,
                     id_token: qb_id_token
                 };
@@ -1091,6 +1094,7 @@ module.exports = {
                 .then(async function (authResponse) {
                     oauth2_token_json = JSON.stringify(authResponse.getJson());
                     let tokenArray = JSON.parse(oauth2_token_json);
+                    console.log("tokenArray",tokenArray)
                     qb_access_token = tokenArray.access_token;
                     qb_refresh_token = tokenArray.refresh_token;
                     qb_id_token = tokenArray.id_token;
@@ -1516,10 +1520,11 @@ module.exports = {
             });
         } catch (err) {
             // const error = JSON.stringify(err.response, null, 2)
-            console.log(err);
+            console.log("attachment error",err);
             return res.json({
                 status: 500,
-                message: "Loading attachment failed"
+                message: "Loading attachment failed",
+                error: err
             })
         }
     }
