@@ -104,7 +104,7 @@ module.exports = {
     getCategoriesForDashboard: (company_id) => {
         return new Promise((resolov, reject) => {
             pool.query(
-                `SELECT * FROM categories WHERE company_id = ?`, [company_id],
+                `SELECT * FROM categories WHERE company_id = ? AND category_status = 1`, [company_id],
                 (error, results, fields) => {
                     if (error) {
                         return reject(error);
@@ -117,7 +117,7 @@ module.exports = {
     getCategoriesForUserCreation: (company_id) => {
         return new Promise((resolov, reject) => {
             pool.query(
-                `SELECT * FROM categories WHERE company_id = ?`, [company_id],
+                `SELECT * FROM categories WHERE company_id = ? AND category_status = 1`, [company_id],
                 (error, results, fields) => {
                     if (error) {
                         return reject(error);
@@ -236,7 +236,7 @@ module.exports = {
     createUserAccount: (first_name,last_name, email,xero_user_id, xero_id_token, xero_access_token, xero_refresh_token, xero_expire_at, token, user_type) => {
         return new Promise((resolov, reject) => {
             pool.query(
-                `INSERT INTO users(first_name, last_name, email, xero_user_id, xero_id_token, xero_access_token, xero_refresh_token, xero_expire_at, token, user_type, role_id) VALUES (? ,? ,?, ? ,? ,?, ?, ?, ?, ?, 1)`, [first_name, last_name, email, xero_user_id, xero_id_token, xero_access_token,xero_refresh_token,xero_expire_at, token, user_type],
+                `INSERT INTO users(first_name, last_name, email, xero_user_id, xero_id_token, xero_access_token, xero_refresh_token, xero_expire_at, token, user_type, role_id, is_verified) VALUES (? ,? ,?, ? ,? ,?, ?, ?, ?, ?, 1, 1)`, [first_name, last_name, email, xero_user_id, xero_id_token, xero_access_token,xero_refresh_token,xero_expire_at, token, user_type],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
@@ -537,10 +537,10 @@ module.exports = {
         })
     },
     getCategoryByCategoryIDAndParentName: (category_name, parent_category_id, company_id) => {
-        console.log(`SELECT * FROM categories WHERE category_name = ${category_name} AND parent_category_id = ${parent_category_id} AND company_id = ${company_id}`)
+        console.log(`SELECT * FROM categories WHERE category_name = ${category_name} AND parent_category_id = ${parent_category_id} AND company_id = ${company_id} AND category_status = 1`)
         return new Promise((resolov, reject) => {
             pool.query(
-                `SELECT * FROM categories WHERE category_name = ? AND parent_category_id = ? AND company_id = ?`, [category_name, parent_category_id, company_id],
+                `SELECT * FROM categories WHERE category_name = ? AND parent_category_id = ? AND company_id = ? AND category_status = 1`, [category_name, parent_category_id, company_id],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
@@ -610,7 +610,7 @@ module.exports = {
     updateExpenseAttachments: (expense_id, attachments, company_id) => {
         return new Promise((resolov, reject) => {
             pool.query(
-                `UPDATE expenses SET attachments = ? WHERE expense_id = ? and company_id = ?`, [expense_id, company_id],
+                `UPDATE expenses SET attachments = ? WHERE expense_id = ? and company_id = ?`, [attachments, expense_id, company_id],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
@@ -856,5 +856,89 @@ module.exports = {
                 }
             );
         })
-    }
+    },
+    createUser: (email, role_id, company_id, category_ids, created_by, user_type) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `INSERT INTO users(email,role_id,company_id,category_ids,created_by,user_type) VALUES (?, ?, ?, ?, ?, ?)`, [email, role_id, company_id, category_ids, created_by, user_type],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    setTokenForFirstTimeLogin: (user_id, token) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `UPDATE users SET token = ? WHERE id = ?`, [token, user_id],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    storeSubscription: (user_id, company_id, customer_id, subscription_id, amount, package_duration) => {
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `INSERT INTO subscriptions(user_id, company_id, customer_id, subscription_id, amount, package_duration) VALUES (? ,? ,? ,? ,? ,?)`, [user_id, company_id, customer_id, subscription_id, amount, package_duration],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    deleteUserRelationsByUserId: (user_id) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `DELETE FROM user_relations WHERE user_id = ?`, [user_id],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    deleteUserByID: (user_id) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `DELETE FROM users WHERE id = ?`, [user_id],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    checkSetupAccount: (token, email) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `SELECT count(*) as 'count' FROM users WHERE token = ? AND email = ?`, [token, email],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolov(results);
+                }
+            );
+        })
+    },
 };

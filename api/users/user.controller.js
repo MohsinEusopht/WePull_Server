@@ -1,6 +1,6 @@
 const {hashSync,genSaltSync,compareSync} = require("bcrypt");
 const crypto = require('crypto');
-const nodemailer = require("nodemailer");
+const nodeMailer = require("nodemailer");
 const {supplierCount} = require("./user.service");
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const {
@@ -21,7 +21,16 @@ const {
     getAttachables,
     disableAllCompany,
     activateCompany,
-    getLastSyncedActivity
+    getLastSyncedActivity,
+    checkUserEmail,
+    createUser,
+    createUserRole,
+    setTokenForFirstTimeLogin,
+    storeSubscription,
+    deleteUserRelationsByUserId,
+    deleteUserByID,
+    checkSetupAccount,
+    getUserById
 } = require("./user.service");
 const { sign } = require("jsonwebtoken");
 
@@ -378,6 +387,139 @@ module.exports = {
                 status: 200,
                 data: lastSyncData[0],
             })
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    createUser: async (req, res) => {
+        try {
+            const body = req.body;
+            const checkUserResult = await checkUserEmail(body.email);
+            if(checkUserResult[0].user_count === 0) {
+                const createUserResult = await createUser(body.email,body.role_id,body.company_id,body.category_ids,body.created_by,body.user_type);
+                let user_id = createUserResult.insertId;
+                for (let category of body.category_ids.split(',')){
+                    console.log("category",category);
+                    const createUserRoleResult = await createUserRole(user_id, body.company_id, category, body.role_id, body.created_by);
+                }
+
+                const selected_plan = body.selected_plan;
+                let amount = selected_plan==="monthly"?999:9588;
+
+                const customers = await stripe.customers.list();
+                customers.data.map(async (customer) => {
+                    if(customer.email === body.email) {
+                        console.log("customer is", customer);
+                        const subscriptions = await stripe.subscriptions.list();
+                        subscriptions.data.map(async (subscription) => {
+                            if(customer.id === subscription.customer) {
+                                console.log("subscription id",subscription.id);
+                                const createSubscriptionResult = await storeSubscription(user_id, body.company_id, customer.id,subscription.id, amount, selected_plan);
+                                console.log("subscription created",createSubscriptionResult.insertId);
+                            }
+                        });
+                    }
+                });
+
+                return res.json({
+                    status: 200,
+                    message: "User created, will be redirect to success or fail route",
+                    user_id: user_id,
+                    email: body.email
+                });
+            }
+            else {
+                return res.json({
+                    status: 400,
+                    message: 'User email already exist',
+                });
+            }
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    userCreationSuccess: async (req, res) => {
+        try {
+            const user_id = req.params.user_id;
+            const email = req.params.email;
+
+            const token = crypto.randomBytes(48).toString('hex');
+            console.log("token for user", token);
+            const result = setTokenForFirstTimeLogin(user_id, token);
+
+            let setup_account_url = process.env.APP_URL+"setup/account/"+email+"/"+token;
+            let html = "<html><head></head><body style='background-color: #eaeaea;padding-top: 30px;padding-bottom: 30px'><div style='width: 50%;margin-left:auto;margin-right:auto;margin-top: 30px;margin-bottom: 30px;margin-top:20px;border-radius: 5px;background-color: white;height: 100%;padding-bottom: 30px;overflow: hidden'><div style='background-color: white;padding-top: 20px;padding-bottom: 20px;width: 100%;text-align: center'><img src='https://wepull.netlify.app/finalLogo.png' width='100px' style='margin: auto'/></div><hr/><h1 style='text-align: center'>You are invited!</h1><p style='padding-left: 10px;padding-right: 10px'>Hi,<br/><br/>You are invited to join WePull. Click on the button below to set a password for your account.<br/><br/><a href='"+setup_account_url+"' style='text-decoration: none;width: 100%'><button style='border-radius: 5px;background-color: #1a2956;color:white;border: none;margin-left: auto;margin-right: auto;padding:10px;cursor: pointer'>Accept Invitation</button></a><br/><br/>Our team is always here to help. If you have any questions or need further assistance, contact us via email at support@wepull.io</p></div></body></html>"
+            let transporter = nodeMailer.createTransport({
+                host: "smtp.mail.yahoo.com",
+                port: 465,
+                auth: {
+                    user: "mohsinjaved414@yahoo.com",
+                    pass: "exvnhtussrqkmqcr"
+                },
+                debug: true, // show debug output
+                logger: true
+            });
+            let mailOptions = {
+                from: 'WePull Support <mohsinjaved414@yahoo.com>',
+                to: email,
+                subject: 'WePull Account Creation',
+                html: html
+            };
+            await transporter.sendMail(mailOptions, (err, info) => {
+                if (err) {
+                    console.log("err",err)
+                    return res.json({
+                        "status": "200",
+                        "message": "User created successfully, Email Failed"
+                    });
+                } else {
+                    return res.json({
+                        status: 200,
+                        message: "User created successfully",
+                        user_id: user_id,
+                    });
+                }
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    userCreationFailed: async (req, res) => {
+        try {
+            const user_id = req.params.user_id;
+            const deleteUserRelationsByUserIdResponse = await deleteUserRelationsByUserId(user_id);
+            const deleteUserByIdResponse = await deleteUserByID(user_id);
+
+            return res.json({
+                status: 200,
+                message: 'User deleted',
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    checkSetupAccount: async (req, res) => {
+        try {
+            const email = req.params.email;
+            const token = req.params.token;
+            const record = await checkSetupAccount(token, email);
+            console.log("checkSetupAccount",record);
+            return res.json({
+                success: 1,
+                data: record[0].count
+            });
         } catch (e) {
             return res.json({
                 status: 500,

@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const request = require('request');
 const strToTime = require('strtotime');
 const nodeMailer = require("nodemailer");
+const moment = require('moment-timezone');
 const {
     updateRefreshToken
 } = require("./xero.service");
@@ -456,8 +457,12 @@ async function syncExpenses(user_id, company_id, tenant, duration) {
         if(duration === "all") {
             ifModifiedSince = null;
         }
+        else if (duration === "week") {
+            console.log("week expenses are syncing");
+            ifModifiedSince = new Date(moment(new Date()).subtract(7, 'days').toISOString());
+        }
         else {
-            ifModifiedSince = new Date(moment(new Date()).subtract(1, 'days').toISOString());
+            ifModifiedSince = null;
         }
 
         const page = 1;
@@ -489,11 +494,13 @@ async function syncExpenses(user_id, company_id, tenant, duration) {
                                 for (let x = 0; x < Expense.lineItems[i].tracking.length; x++) {
                                     const getCategory = await getCategoryByCategoryIDAndParentName(Expense.lineItems[i].tracking[x].option, Expense.lineItems[i].tracking[x].trackingCategoryID, company_id);
                                     console.log("getCategoryByCategoryIDAndParentName",getCategory);
-                                    if(getCategory[0].category_type === "Departments") {
-                                        category1 = getCategory[0].id;
-                                    }
-                                    else if(getCategory[0].category_type === "Locations") {
-                                        category2 = getCategory[0].id;
+                                    if(getCategory.length > 0) {
+                                        if(getCategory[0].category_type === "Departments") {
+                                            category1 = getCategory[0].id;
+                                        }
+                                        else if(getCategory[0].category_type === "Locations") {
+                                            category2 = getCategory[0].id;
+                                        }
                                     }
                                 }
                             }
@@ -566,15 +573,15 @@ async function syncExpenses(user_id, company_id, tenant, duration) {
 
                     //Store expense Attachments
                     if (Expense.hasAttachments === true) {
-                        let attachments;
-                        const getExpenseAttachmentsResult = await getExpenseAttachments(Expense.invoiceID,company_id);
-                        console.log("getExpenseAttachmentsResult",getExpenseAttachmentsResult);
-                        if(getExpenseAttachmentsResult[0].attachments!==null) {
-                            attachments = JSON.parse(getExpenseAttachmentsResult[0].attachments);
-                        }
-                        else {
-                            attachments = [];
-                        }
+                        let attachments = [];
+                        // const getExpenseAttachmentsResult = await getExpenseAttachments(Expense.invoiceID,company_id);
+                        // console.log("getExpenseAttachmentsResult",getExpenseAttachmentsResult);
+                        // if(getExpenseAttachmentsResult[0].attachments!==null) {
+                        //     attachments = JSON.parse(getExpenseAttachmentsResult[0].attachments);
+                        // }
+                        // else {
+                        //     attachments = [];
+                        // }
                         console.log("attachments",attachments);
 
                         const response = await xero.accountingApi.getInvoiceAttachments(tenant, Expense.invoiceID);
@@ -1220,6 +1227,46 @@ module.exports = {
                 status: 500,
                 message: e
             })
+        }
+    },
+    syncAll: async (req, res) => {
+        try {
+            const user_id = req.params.user_id;
+            const company_id = req.params.company_id;
+
+            const token = await refreshToken(user_id);
+
+            const company = await getCompanyByID(company_id);
+            const user = await getUserById(user_id);
+
+            console.log("token", token);
+
+            let access_token = user[0].xero_access_token;
+            let tenant_id = company[0].tenant_id;
+
+            console.log("access_token", access_token);
+            console.log("tenant_id", tenant_id);
+
+            await syncCategories(user_id, company_id, tenant_id).then(async () => {
+                await syncSuppliers(user_id, company_id, tenant_id).then(async () => {
+                    await syncAccounts(user_id, company_id, tenant_id).then(async () => {
+                        await syncExpenses(user_id, company_id, tenant_id, "week").then(() => {
+                            storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
+                        });
+                    })
+                })
+            });
+
+            return res.json({
+                status: 200,
+                message: "All data synced successfully"
+            });
+        }
+        catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
         }
     },
     viewAttachment: async(req, res) => {

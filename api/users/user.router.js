@@ -18,8 +18,14 @@ const {
     getSuppliers,
     getUsers,
     activateCompany,
-    getLastSyncedActivity
+    getLastSyncedActivity,
+    createUser,
+    userCreationSuccess,
+    userCreationFailed,
+    checkSetupAccount
 } = require("./user.controller");
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const moment = require('moment');
 
 router.get("/", defaultFun);
 
@@ -64,5 +70,62 @@ router.get('/company/activate/:company_id/:user_id', validateAdminPermission, ac
 
 //getLastSyncedActivity
 router.get('/getLastSyncedActivity/:company_id/:type', getLastSyncedActivity);
+
+router.post('/subscribe', validateAdminPermission, async (req, res) => {
+    try {
+        const {email, payment_method, plan} = req.body;
+
+        const date = new Date();
+        const nextMonthFirstDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+        const nextMonth = moment(nextMonthFirstDate).unix();
+        console.log("nextMonthFirstDate",nextMonth)
+
+        let price_id = "";
+        if(plan === "monthly") {
+            price_id = 'price_1LXMCYA94Y1iT6R5fFNpuQgw';
+        }
+        else {
+            price_id = 'price_1LYTahA94Y1iT6R5NHXTQg8w';
+        }
+
+        console.log("selected plan is ",plan);
+
+        const customer = await stripe.customers.create({
+            payment_method: payment_method,
+            email: email,
+            invoice_settings: {
+                default_payment_method: payment_method,
+            },
+        });
+
+        console.log("customer created", customer.id);
+
+        const subscription = await stripe.subscriptions.create({
+            customer: customer.id,
+            items: [{ price: price_id }],
+            billing_cycle_anchor: nextMonth,
+            expand: ['latest_invoice.payment_intent']
+        });
+
+        if(subscription) {
+            console.log("subscription",subscription);
+            const status = subscription.latest_invoice.payment_intent.status;
+            const client_secret = subscription.latest_invoice.payment_intent.client_secret;
+            res.json({'client_secret': client_secret, 'status': status});
+        }
+    }
+    catch (e) {
+        return res.json({
+            status:500,
+            message: e
+        })
+    }
+
+})
+
+router.post("/createUser",validateAdminPermission, createUser);
+router.get("/user/creation/success/:user_id/:email", validateAdminPermission, userCreationSuccess);
+router.get("/user/creation/failed/:user_id", validateAdminPermission, userCreationFailed);
+router.get("/checkSetupAccount/:email/:token", checkSetupAccount);
 
 module.exports = router;
