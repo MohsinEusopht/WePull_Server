@@ -10,19 +10,27 @@ const {
     getUserCategories,
     getExpenses,
     getExpensesByCategoryID,
+    getUserExpenses,
     getAttachables,
     getCompanies,
     getCategories,
     getCategoriesForDashboard,
     getCategoriesForUserCreation,
+    getCategoriesForUserDashboard,
+    getUserAssignedCategoriesByUserID,
     getSuppliers,
     getUsers,
+    getUserAssignedCategories,
     activateCompany,
     getLastSyncedActivity,
     createUser,
     userCreationSuccess,
     userCreationFailed,
-    checkSetupAccount
+    checkSetupAccount,
+    updateAccountInformation,
+    deactivate,
+    activate,
+    hardDeleteUser,
 } = require("./user.controller");
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const moment = require('moment');
@@ -50,6 +58,8 @@ router.get("/getCompanies/:user_id", validateAdminPermission, getCompanies);
 router.get("/getCategories/:company_id", validateAdminPermission, getCategories);
 router.get("/getCategoriesForDashboard/:company_id", validateAdminPermission, getCategoriesForDashboard);
 router.get("/getCategoriesForUserCreation/:company_id", validateAdminPermission, getCategoriesForUserCreation);
+router.get('/getCategoriesForUserDashboard/:company_id/:user_id', validateUserPermission, getCategoriesForUserDashboard);
+router.get('/getUserAssignedCategoriesByUserID/:company_id/:user_id', validateUserPermission, getUserAssignedCategoriesByUserID);
 
 
 //Get suppliers for supplier page
@@ -57,11 +67,14 @@ router.get("/getSuppliers/:company_id", validateAdminPermission, getSuppliers);
 
 //Get users for user page
 router.get("/getUsers/:company_id", validateAdminPermission, getUsers);
+router.get('/getUserAssignedCategories/:company_id', getUserAssignedCategories);
 
 //Get expenses for expense page
 router.get('/getExpenses/:company_type/:company_id', getExpenses)
 
 router.get('/getExpensesByCategoryID/:company_id/:category_id', getExpensesByCategoryID);
+
+router.get('/getUserExpenses/:company_id', getUserExpenses);
 
 router.get('/getAttachables/:company_id', getAttachables);
 
@@ -123,9 +136,18 @@ router.post('/subscribe', validateAdminPermission, async (req, res) => {
 
 })
 
+router.get('/all_stripe_customers', async (req, res) => {
+    const customers = await stripe.customers.list();
+    return res.json(customers.data);
+})
+
 router.post("/createUser",validateAdminPermission, createUser);
-router.get("/user/creation/success/:user_id/:email", validateAdminPermission, userCreationSuccess);
+router.get("/user/creation/success/:company_id/:user_id/:email/:selected_plan", validateAdminPermission, userCreationSuccess);
 router.get("/user/creation/failed/:user_id", validateAdminPermission, userCreationFailed);
 router.get("/checkSetupAccount/:email/:token", checkSetupAccount);
+router.post("/updateAccountInformation", updateAccountInformation);
+router.get('/deactivate/:id',validateAdminPermission, deactivate);
+router.get('/activate/:id',validateAdminPermission, activate);
+router.get('/hardDeleteUser/:id',validateAdminPermission, hardDeleteUser);
 
 module.exports = router;

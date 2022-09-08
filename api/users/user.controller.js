@@ -2,7 +2,7 @@ const {hashSync,genSaltSync,compareSync} = require("bcrypt");
 const crypto = require('crypto');
 const nodeMailer = require("nodemailer");
 const {supplierCount} = require("./user.service");
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const {
     getUserByEmail,
     getUser,
@@ -14,10 +14,14 @@ const {
     getCategories,
     getCategoriesForDashboard,
     getCategoriesForUserCreation,
+    getCategoriesForUserDashboard,
+    getUserAssignedCategoriesByUserID,
     getSuppliers,
     getUsers,
+    getUserAssignedCategories,
     getExpenses,
     getExpensesByCategoryID,
+    getUserExpenses,
     getAttachables,
     disableAllCompany,
     activateCompany,
@@ -29,8 +33,14 @@ const {
     storeSubscription,
     deleteUserRelationsByUserId,
     deleteUserByID,
+    deleteUserSubscription,
     checkSetupAccount,
-    getUserById
+    updateAccountInformation,
+    getUserById,
+    deactivate,
+    getSubscription,
+    updateStatusOfSubscription,
+    activate
 } = require("./user.service");
 const { sign } = require("jsonwebtoken");
 
@@ -46,21 +56,20 @@ module.exports = {
         try {
             const body = req.body;
             const getUserData = await getUserByEmail(body.email);
-
             if (getUserData) {
-                getUserData.password = getUserData.password.replace(/^\$2y(.+)$/i, '$2a$1');
-                const result = compareSync(body.password, getUserData.password);
+                getUserData[0].password = getUserData[0].password.replace(/^\$2y(.+)$/i, '$2a$1');
+                const result = compareSync(body.password, getUserData[0].password);
 
                 if (result) {
-                    getUserData.password = undefined;
-                    const getCompany = await getCompanyByID(getUserData.company_id);
+                    getUserData[0].password = undefined;
+                    const getCompany = await getCompanyByID(getUserData[0].company_id);
 
-                    const json_token = sign({result: getUserData}, process.env.JWT_KEY);
+                    const json_token = sign({result: getUserData[0]}, process.env.JWT_KEY);
                     return res.json({
                         status: 200,
                         message: "login successfully",
                         token: json_token,
-                        data: getUserData,
+                        data: getUserData[0],
                         company_data: getCompany[0]
                     });
 
@@ -71,7 +80,6 @@ module.exports = {
                     });
                 }
             } else {
-
                 return res.json({
                     status: 500,
                     message: "Email do not exist."
@@ -250,6 +258,48 @@ module.exports = {
             });
         }
     },
+    getCategoriesForUserDashboard: async (req, res) => {
+        try {
+            const company_id = req.params.company_id;
+            const user_id = req.params.user_id;
+            console.log("company_id", company_id);
+            console.log("user_id", user_id);
+            const categories = await getCategoriesForUserDashboard(company_id, user_id);
+            console.log("categories", categories);
+
+            return res.json({
+                status: 200,
+                message: "Categories",
+                data: categories
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    getUserAssignedCategoriesByUserID: async (req, res) => {
+        try {
+            const company_id = req.params.company_id;
+            const user_id = req.params.user_id;
+            console.log("company_id", company_id);
+            console.log("user_id", user_id);
+            const categories = await getUserAssignedCategoriesByUserID(company_id, user_id);
+            console.log("categories", categories);
+
+            return res.json({
+                status: 200,
+                message: "Categories",
+                data: categories
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
     getSuppliers: async (req, res) => {
         try {
             const company_id = req.params.company_id;
@@ -288,6 +338,25 @@ module.exports = {
             });
         }
     },
+    getUserAssignedCategories: async (req, res) => {
+        try {
+            const company_id = req.params.company_id;
+            console.log("company_id", company_id);
+            const categories = await getUserAssignedCategories(company_id);
+            console.log("assigned categories", categories);
+
+            return res.json({
+                status: 200,
+                message: "Assigned Categories",
+                data: categories
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
     getExpenses: async (req, res) => {
         try {
             const company_id = req.params.company_id;
@@ -303,6 +372,24 @@ module.exports = {
                 console.log("expenses", expenses);
             }
 
+            return res.json({
+                status: 200,
+                message: "Expenses",
+                data: expenses
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    getUserExpenses: async (req, res) => {
+        try {
+            const company_id = req.params.company_id;
+            console.log("company_id", company_id);
+            let expenses = await getUserExpenses(company_id);
+            console.log("expenses", expenses);
             return res.json({
                 status: 200,
                 message: "Expenses",
@@ -406,24 +493,6 @@ module.exports = {
                     const createUserRoleResult = await createUserRole(user_id, body.company_id, category, body.role_id, body.created_by);
                 }
 
-                const selected_plan = body.selected_plan;
-                let amount = selected_plan==="monthly"?999:9588;
-
-                const customers = await stripe.customers.list();
-                customers.data.map(async (customer) => {
-                    if(customer.email === body.email) {
-                        console.log("customer is", customer);
-                        const subscriptions = await stripe.subscriptions.list();
-                        subscriptions.data.map(async (subscription) => {
-                            if(customer.id === subscription.customer) {
-                                console.log("subscription id",subscription.id);
-                                const createSubscriptionResult = await storeSubscription(user_id, body.company_id, customer.id,subscription.id, amount, selected_plan);
-                                console.log("subscription created",createSubscriptionResult.insertId);
-                            }
-                        });
-                    }
-                });
-
                 return res.json({
                     status: 200,
                     message: "User created, will be redirect to success or fail route",
@@ -446,12 +515,32 @@ module.exports = {
     },
     userCreationSuccess: async (req, res) => {
         try {
+            const company_id = req.params.company_id;
             const user_id = req.params.user_id;
             const email = req.params.email;
+            const selected_plan = req.params.selected_plan;
 
             const token = crypto.randomBytes(48).toString('hex');
             console.log("token for user", token);
             const result = setTokenForFirstTimeLogin(user_id, token);
+
+            let amount = selected_plan==="monthly"?999:9588;
+
+            const customers = await stripe.customers.list();
+            console.log('customers',customers.data);
+            await customers.data.map(async (customer) => {
+                if(customer.email === email) {
+                    console.log("customer is", customer);
+                    const subscriptions = await stripe.subscriptions.list();
+                    await subscriptions.data.map(async (subscription) => {
+                        if(customer.id === subscription.customer) {
+                            console.log("subscription id",subscription.id);
+                            const createSubscriptionResult = await storeSubscription(user_id, company_id, customer.id,subscription.id, amount, selected_plan);
+                            console.log("subscription created",createSubscriptionResult.insertId);
+                        }
+                    });
+                }
+            });
 
             let setup_account_url = process.env.APP_URL+"setup/account/"+email+"/"+token;
             let html = "<html><head></head><body style='background-color: #eaeaea;padding-top: 30px;padding-bottom: 30px'><div style='width: 50%;margin-left:auto;margin-right:auto;margin-top: 30px;margin-bottom: 30px;margin-top:20px;border-radius: 5px;background-color: white;height: 100%;padding-bottom: 30px;overflow: hidden'><div style='background-color: white;padding-top: 20px;padding-bottom: 20px;width: 100%;text-align: center'><img src='https://wepull.netlify.app/finalLogo.png' width='100px' style='margin: auto'/></div><hr/><h1 style='text-align: center'>You are invited!</h1><p style='padding-left: 10px;padding-right: 10px'>Hi,<br/><br/>You are invited to join WePull. Click on the button below to set a password for your account.<br/><br/><a href='"+setup_account_url+"' style='text-decoration: none;width: 100%'><button style='border-radius: 5px;background-color: #1a2956;color:white;border: none;margin-left: auto;margin-right: auto;padding:10px;cursor: pointer'>Accept Invitation</button></a><br/><br/>Our team is always here to help. If you have any questions or need further assistance, contact us via email at support@wepull.io</p></div></body></html>"
@@ -496,6 +585,8 @@ module.exports = {
     userCreationFailed: async (req, res) => {
         try {
             const user_id = req.params.user_id;
+            console.log("user failed", user_id)
+
             const deleteUserRelationsByUserIdResponse = await deleteUserRelationsByUserId(user_id);
             const deleteUserByIdResponse = await deleteUserByID(user_id);
 
@@ -522,6 +613,108 @@ module.exports = {
             });
         } catch (e) {
             return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    updateAccountInformation: async (req, res) => {
+        try {
+            const body = req.body;
+            console.log("stup",body);
+            const salt = genSaltSync(10);
+            let encrypted_password = hashSync(body.password, salt);
+            const updateSetupAccountResult = await updateAccountInformation(body.email,body.first_name,body.last_name, body.contact, encrypted_password);
+
+            return res.json({
+                status: 200,
+                message: "Account setup completed! We're redirecting you to login page to login your account.",
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    deactivate: async(req, res) => {
+        try {
+            const id = req.params.id;
+            const user = await deactivate(id);
+
+            const getSubscriptionResult = await getSubscription(id);
+
+            const subscription = await stripe.subscriptions.update(
+                getSubscriptionResult[0].subscription_id,
+                {pause_collection: {behavior: 'void'}}
+            );
+
+            const updateStatusOfSubscriptionResult = await updateStatusOfSubscription('paused', id);
+
+            console.log("subscription pause",subscription);
+
+            return res.json({
+                status: 200,
+                message: "User deactivated successfully"
+            });
+        } catch (e) {
+            return res.status(404).json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    activate: async(req, res) => {
+        try {
+            const id = req.params.id;
+            const user = await activate(id);
+
+            const getSubscriptionResult = await getSubscription(id);
+
+            const subscription = await stripe.subscriptions.update(
+                getSubscriptionResult[0].subscription_id,
+                {
+                    pause_collection: '',
+                }
+            );
+
+            const updateStatusOfSubscriptionResult = await updateStatusOfSubscription('active', id);
+
+            console.log("subscription activated",subscription);
+
+            return res.json({
+                status: 200,
+                message: "User activated successfully"
+            });
+        } catch (e) {
+            return res.status(404).json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    hardDeleteUser: async(req, res) => {
+        try {
+            const id = req.params.id;
+            const getSubscriptionResult = await getSubscription(id);
+
+            console.log("getSubscriptionResult",getSubscriptionResult[0].subscription_id);
+            const deleted = await stripe.subscriptions.del(
+                getSubscriptionResult[0].subscription_id
+            );
+
+            console.log("subscription deleted",deleted);
+
+            const deleteUserRelationsResult = await deleteUserRelationsByUserId(id);
+            const hardDeleteUserResult = await deleteUserByID(id);
+            const deleteUserSubscriptionResult = await deleteUserSubscription(id);
+
+            return res.json({
+                status: 200,
+                message: "User deleted successfully"
+            });
+        } catch (e) {
+            return res.status(404).json({
                 status: 500,
                 message: "Error :" + e.message,
             });
