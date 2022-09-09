@@ -1275,7 +1275,7 @@ module.exports = {
                                 console.log("getUserByEmailResult",getUserByEmailResult);
                                 user_id = getUserByEmailResult[0].id;
                                 console.log("updateLoginToken");
-                                const updateLoginTokenResult = await updateLoginToken(getUserByEmailResult.id, token, null, null, null, null, 1);
+                                const updateLoginTokenResult = await updateLoginToken(getUserByEmailResult[0].id, token, null, null, null, null, 1);
                             }
 
                             const checkUserCompanyResult = await checkUserCompanyByTenant(decodedIdToken.realmid);
@@ -1389,9 +1389,10 @@ module.exports = {
             const user_id = req.params.user_id;
             const company_id = req.params.company_id;
 
+            const refreshTokenResult = await refreshToken(company_id);
+
             const company = await getCompanyByID(company_id);
             const user = await getUserById(user_id);
-
             await oauthClient.setToken({
                 token_type: 'Bearer',
                 access_token: company[0].access_token,
@@ -1435,7 +1436,7 @@ module.exports = {
                                                     const setForeignKeyResult9 = await setForeignKeyEnable('user_relations');
                                                     const user_companies_after_deletion = await getCompanyByUserID(user_id);
                                                     uc_length = user_companies_after_deletion.length;
-                                                    uc_active_company = user_companies_after_deletion[0].company_name;
+                                                    uc_active_company = user_companies_after_deletion[0].id;
                                                     if (user_companies_after_deletion.length > 0) {
                                                         console.log("user_companies", user_companies_after_deletion);
                                                         const disableAllCompanyResult = await disableAllCompany(user_id);
@@ -1483,6 +1484,73 @@ module.exports = {
                 status: 500,
                 message: e
             })
+        }
+    },
+    syncAll: async (req, res) => {
+        try {
+            const user_id = req.params.user_id;
+            const company_id = req.params.company_id;
+
+            const token = await refreshToken(company_id);
+
+            const company = await getCompanyByID(company_id);
+            const user = await getUserById(user_id);
+
+            console.log("token", token);
+
+            let access_token = company[0].access_token;
+            let tenant_id = company[0].tenant_id;
+
+            console.log("access_token", access_token);
+            console.log("tenant_id", tenant_id);
+
+            let accounts = await getAccounts(access_token, tenant_id);
+
+            let purchases = await getPurchases(access_token, tenant_id, "week");
+            let bills = await getBills(access_token, tenant_id, "week");
+            let attachables = await getAllAttachables(access_token, tenant_id);
+
+            let categories = await getCategories(access_token, tenant_id);
+            let classes = await getClasses(access_token, tenant_id);
+
+            let suppliers = await getSuppliers(access_token, tenant_id, "all");
+
+
+            const accountArray = JSON.parse(accounts).IntuitResponse.QueryResponse.Account;
+
+            const purchaseArray = JSON.parse(purchases).IntuitResponse.QueryResponse.Purchase;
+            const billArray = JSON.parse(bills).IntuitResponse.QueryResponse.Bill;
+            const attachableArray = JSON.parse(attachables).IntuitResponse.QueryResponse.Attachable;
+
+            const categoryArray = JSON.parse(categories).IntuitResponse.QueryResponse.Department;
+            const classArray = JSON.parse(classes).IntuitResponse.QueryResponse.Class;
+
+            const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
+
+            await syncCategories(user_id, company_id, categoryArray).then(async () => {
+                await syncClasses(user_id, company_id, classArray).then(async () => {
+                    await syncAccounts(user_id, company_id, accountArray).then(async () => {
+                        await syncSuppliers(user_id, company_id, supplierArray).then(async () => {
+                            await syncPurchases(user_id, company_id, purchaseArray).then(async () => {
+                                await syncAttachables(user_id, company_id, attachableArray).then(() => {
+                                    storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
+                                })
+                            });
+                        });
+                    });
+                });
+            });
+
+            return res.json({
+                status: 200,
+                message: "All data synced successfully"
+            });
+        }
+        catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
         }
     },
     viewAttachment: async(req, res) => {

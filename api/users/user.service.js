@@ -903,7 +903,7 @@ module.exports = {
     getCategoryByCategoryID: (category_id, company_id) => {
         return new Promise((resolve, reject) => {
             pool.query(
-                `SELECT * FROM categories WHERE category_id = ? AND`, [category_id, company_id],
+                `SELECT * FROM categories WHERE category_id = ? AND company_id = ?`, [category_id, company_id],
                 (error, results, fields) => {
                     if (error) {
                         return reject(error);
@@ -917,6 +917,48 @@ module.exports = {
         return new Promise((resolve, reject) => {
             pool.query(
                 `INSERT INTO users(email,role_id,company_id,category_ids,created_by,user_type) VALUES (?, ?, ?, ?, ?, ?)`, [email, role_id, company_id, category_ids, created_by, user_type],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    updateUser: (user_id, category_ids) => {
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `UPDATE users SET category_ids = ? WHERE id = ?`, [category_ids, user_id],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    updateUserProfile: (user_id, first_name, last_name) => {
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `UPDATE users SET first_name = ?,last_name = ? WHERE id = ?`, [first_name, last_name, user_id],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    changeUserPassword: (user_id, password) => {
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `UPDATE users SET password = ? WHERE id = ?`, [password, user_id],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
@@ -1073,6 +1115,33 @@ module.exports = {
                         return reject(error);
                     }
                     return resolve(results);
+                }
+            );
+        })
+    },
+    getSubscriptionByUserID: (user_id) => {
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `SELECT * FROM subscriptions WHERE user_id = ?`, [user_id],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    deleteAllUserRelation: (user_id, company_id) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `DELETE FROM user_relations WHERE user_id = ? AND company_id = ?`, [user_id, company_id],
+                (error, results, fields) => {
+                    if (error) {
+                        // console.log(error);
+                        return reject(error);
+                    }
+                    return resolov(results);
                 }
             );
         })

@@ -31,6 +31,11 @@ const {
     deactivate,
     activate,
     hardDeleteUser,
+    getUserByUserID,
+    updateUser,
+    updateUserProfile,
+    changeUserPassword,
+    subscribe
 } = require("./user.controller");
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const moment = require('moment');
@@ -63,11 +68,13 @@ router.get('/getUserAssignedCategoriesByUserID/:company_id/:user_id', validateUs
 
 
 //Get suppliers for supplier page
-router.get("/getSuppliers/:company_id", validateAdminPermission, getSuppliers);
+router.get("/getSuppliers/:company_id", getSuppliers);
 
 //Get users for user page
 router.get("/getUsers/:company_id", validateAdminPermission, getUsers);
 router.get('/getUserAssignedCategories/:company_id', getUserAssignedCategories);
+router.get("/getUserByUserID/:user_id", validateAdminPermission, getUserByUserID);
+
 
 //Get expenses for expense page
 router.get('/getExpenses/:company_type/:company_id', getExpenses)
@@ -84,57 +91,7 @@ router.get('/company/activate/:company_id/:user_id', validateAdminPermission, ac
 //getLastSyncedActivity
 router.get('/getLastSyncedActivity/:company_id/:type', getLastSyncedActivity);
 
-router.post('/subscribe', validateAdminPermission, async (req, res) => {
-    try {
-        const {email, payment_method, plan} = req.body;
-
-        const date = new Date();
-        const nextMonthFirstDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-        const nextMonth = moment(nextMonthFirstDate).unix();
-        console.log("nextMonthFirstDate",nextMonth)
-
-        let price_id = "";
-        if(plan === "monthly") {
-            price_id = 'price_1LXMCYA94Y1iT6R5fFNpuQgw';
-        }
-        else {
-            price_id = 'price_1LYTahA94Y1iT6R5NHXTQg8w';
-        }
-
-        console.log("selected plan is ",plan);
-
-        const customer = await stripe.customers.create({
-            payment_method: payment_method,
-            email: email,
-            invoice_settings: {
-                default_payment_method: payment_method,
-            },
-        });
-
-        console.log("customer created", customer.id);
-
-        const subscription = await stripe.subscriptions.create({
-            customer: customer.id,
-            items: [{ price: price_id }],
-            billing_cycle_anchor: nextMonth,
-            expand: ['latest_invoice.payment_intent']
-        });
-
-        if(subscription) {
-            console.log("subscription",subscription);
-            const status = subscription.latest_invoice.payment_intent.status;
-            const client_secret = subscription.latest_invoice.payment_intent.client_secret;
-            res.json({'client_secret': client_secret, 'status': status});
-        }
-    }
-    catch (e) {
-        return res.json({
-            status:500,
-            message: e
-        })
-    }
-
-})
+router.post('/subscribe', validateAdminPermission, subscribe)
 
 router.get('/all_stripe_customers', async (req, res) => {
     const customers = await stripe.customers.list();
@@ -149,5 +106,8 @@ router.post("/updateAccountInformation", updateAccountInformation);
 router.get('/deactivate/:id',validateAdminPermission, deactivate);
 router.get('/activate/:id',validateAdminPermission, activate);
 router.get('/hardDeleteUser/:id',validateAdminPermission, hardDeleteUser);
+router.post('/updateUser', validateAdminPermission, updateUser);
 
+router.post('/updateUserProfile', validateUserPermission, updateUserProfile);
+router.post('/changeUserPassword', validateUserPermission, changeUserPassword)
 module.exports = router;

@@ -40,7 +40,12 @@ const {
     deactivate,
     getSubscription,
     updateStatusOfSubscription,
-    activate
+    activate,
+    getSubscriptionByUserID,
+    updateUser,
+    updateUserProfile,
+    deleteAllUserRelation,
+    changeUserPassword
 } = require("./user.service");
 const { sign } = require("jsonwebtoken");
 
@@ -56,23 +61,42 @@ module.exports = {
         try {
             const body = req.body;
             const getUserData = await getUserByEmail(body.email);
-            if (getUserData) {
+            if (getUserData[0]) {
                 getUserData[0].password = getUserData[0].password.replace(/^\$2y(.+)$/i, '$2a$1');
                 const result = compareSync(body.password, getUserData[0].password);
-
                 if (result) {
-                    getUserData[0].password = undefined;
-                    const getCompany = await getCompanyByID(getUserData[0].company_id);
+                    if(getUserData[0].status === 1) {
+                        const getSubscription = await getSubscriptionByUserID(getUserData[0].id);
+                        const subscription = await stripe.subscriptions.retrieve(
+                            getSubscription[0].subscription_id
+                        );
+                        console.log("user subscription",subscription.status);
+                        if(subscription.status === "active") {
+                            getUserData[0].password = undefined;
+                            const getCompany = await getCompanyByID(getUserData[0].company_id);
 
-                    const json_token = sign({result: getUserData[0]}, process.env.JWT_KEY);
-                    return res.json({
-                        status: 200,
-                        message: "login successfully",
-                        token: json_token,
-                        data: getUserData[0],
-                        company_data: getCompany[0]
-                    });
-
+                            const json_token = sign({result: getUserData[0]}, process.env.JWT_KEY);
+                            return res.json({
+                                status: 200,
+                                message: "login successfully",
+                                token: json_token,
+                                data: getUserData[0],
+                                company_data: getCompany[0]
+                            });
+                        }
+                        else {
+                            return res.json({
+                                status: 500,
+                                message: "User subscription expired, Please contact your company admin"
+                            });
+                        }
+                    }
+                    else {
+                        return res.json({
+                            status: 500,
+                            message: "Account has been deactivated, Please contact your company admin"
+                        });
+                    }
                 } else {
                     return res.json({
                         status: 500,
@@ -82,7 +106,7 @@ module.exports = {
             } else {
                 return res.json({
                     status: 500,
-                    message: "Email do not exist."
+                    message: "Invalid email or password"
                 });
             }
 
@@ -513,6 +537,87 @@ module.exports = {
             });
         }
     },
+    updateUser: async (req, res) => {
+        try {
+            const body = req.body;
+            console.log("body",body);
+            const updateUsersResult = await updateUser(body.user_id,body.category_ids.toString());
+            console.log("user updated", updateUsersResult);
+            const deleteAllUserRelationResult = await deleteAllUserRelation(body.user_id, body.company_id);
+            for (let category of body.category_ids.split(',')){
+                console.log("category",category);
+                const createUserRoleResult = await createUserRole(body.user_id, body.company_id, category, body.role_id, body.created_by);
+            }
+
+            return res.json({
+                status: 200,
+                message: "User updated successfully"
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    updateUserProfile: async (req, res) => {
+        try {
+            const body = req.body;
+            console.log("body",body);
+            const updateUsersResult = await updateUserProfile(body.user_id,body.first_name, body.last_name);
+            console.log("user updated", updateUsersResult);
+            const user = await getUserById(body.user_id);
+            user[0].password = undefined;
+            return res.json({
+                status: 200,
+                message: "Profile updated successfully",
+                user: user[0]
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    changeUserPassword: async (req, res) => {
+        try {
+            const body = req.body;
+            console.log("body",body);
+            const getUserData = await getUserById(body.user_id);
+            if (getUserData[0]) {
+                getUserData[0].password = getUserData[0].password.replace(/^\$2y(.+)$/i, '$2a$1');
+                const result = compareSync(body.current_password, getUserData[0].password);
+                if (result) {
+                    const salt = genSaltSync(10);
+                    let encrypted_password = hashSync(body.password, salt);
+                    const changePasswordResult = await changeUserPassword(body.user_id,encrypted_password);
+                    console.log("password changed", changePasswordResult);
+                    return res.json({
+                        status: 200,
+                        message: "Password changed successfully",
+                    });
+                }
+                else {
+                    return res.json({
+                        status: 500,
+                        message: "Current password do not match",
+                    });
+                }
+            }
+            else {
+                return res.json({
+                    status: 500,
+                    message: "User do not exist",
+                });
+            }
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
     userCreationSuccess: async (req, res) => {
         try {
             const company_id = req.params.company_id;
@@ -718,6 +823,77 @@ module.exports = {
                 status: 500,
                 message: "Error :" + e.message,
             });
+        }
+    },
+    getUserByUserID: async (req, res) => {
+        try {
+            const user_id = req.params.user_id;
+            const user = await getUserById(user_id);
+            const subscription = await getSubscriptionByUserID(user_id);
+
+            // user[0].password = undefined;
+            console.log("getUserByUserID",user[0]);
+
+            return res.json({
+                status: 200,
+                user: user[0].email,
+                subscription: subscription[0].package_duration
+            })
+        } catch (e) {
+            return res.status(404).json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    subscribe: async (req, res) => {
+        try {
+            const {email, payment_method, plan} = req.body;
+
+            const date = new Date();
+            const nextMonthFirstDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+            const nextMonth = moment(nextMonthFirstDate).unix();
+            console.log("nextMonthFirstDate",nextMonth)
+
+            let price_id = "";
+            if(plan === "monthly") {
+                price_id = 'price_1LXMCYA94Y1iT6R5fFNpuQgw';
+            }
+            else {
+                price_id = 'price_1LYTahA94Y1iT6R5NHXTQg8w';
+            }
+
+            console.log("selected plan is ",plan);
+
+            const customer = await stripe.customers.create({
+                payment_method: payment_method,
+                email: email,
+                invoice_settings: {
+                    default_payment_method: payment_method,
+                },
+            });
+
+            console.log("customer created", customer.id);
+
+            const subscription = await stripe.subscriptions.create({
+                customer: customer.id,
+                items: [{ price: price_id }],
+                billing_cycle_anchor: nextMonth,
+                expand: ['latest_invoice.payment_intent']
+            });
+
+            if(subscription) {
+                console.log("subscription",subscription);
+                const status = subscription.latest_invoice.payment_intent.status;
+                const client_secret = subscription.latest_invoice.payment_intent.client_secret;
+                res.json({'client_secret': client_secret, 'status': status});
+            }
+        }
+        catch (e) {
+            return res.json({
+                status:500,
+                message: e
+            })
         }
     }
 };

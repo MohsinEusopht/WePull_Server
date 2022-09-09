@@ -1179,7 +1179,7 @@ module.exports = {
                                                     const setForeignKeyResult9 = await setForeignKeyEnable('user_relations');
                                                     const user_companies_after_deletion = await getCompanyByUserID(user_id);
                                                     uc_length = user_companies_after_deletion.length;
-                                                    uc_active_company = user_companies_after_deletion[0].company_name;
+                                                    uc_active_company = user_companies_after_deletion[0].id;
                                                     if (user_companies_after_deletion.length > 1) {
                                                         console.log("user_companies", user_companies_after_deletion);
                                                         const disableAllCompanyResult = await disableAllCompany(user_id);
@@ -1234,10 +1234,16 @@ module.exports = {
             const user_id = req.params.user_id;
             const company_id = req.params.company_id;
 
+            console.log("syncAll user_id", user_id)
+            console.log("syncAll company_id", company_id)
+
             const token = await refreshToken(user_id);
 
             const company = await getCompanyByID(company_id);
             const user = await getUserById(user_id);
+
+            console.log("syncAll user", user)
+            console.log("syncAll company", company)
 
             console.log("token", token);
 
