@@ -11,6 +11,7 @@ const request = require('request');
 const strToTime = require('strtotime');
 const nodeMailer = require("nodemailer");
 const moment = require('moment-timezone');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const {
     updateRefreshToken
 } = require("./xero.service");
@@ -66,6 +67,11 @@ const {
     removeSuppliers,
     removeUsersOfCompany,
     removeCompany,
+    getCompanyUsers,
+    getSubscription,
+    deleteUserSubscription,
+    setAllSupplierStatusToZero,
+    setAllCategoryStatusToZero
 } = require("../users/user.service");
 
 const {
@@ -236,6 +242,8 @@ async function syncCategories(user_id, company_id, tenant) {
 
         console.log("syncCategories token set:", TS);
 
+        const setAllCategoryStatusToZeroResponse = await setAllCategoryStatusToZero(company_id);
+        console.log("setAllCategoryStatusToZeroResponse",setAllCategoryStatusToZeroResponse)
         await xero.setTokenSet(TS);
 
         const xeroTenantId = tenant;
@@ -273,7 +281,7 @@ async function syncCategories(user_id, company_id, tenant) {
                         console.log("category status", Category.status);
                         console.log("category parent", res[i].name);
                         console.log("")
-                        const addCategoryResult = addCategory(Category.name, Category.trackingOptionID, null, Category.status.toString() === "ACTIVE" ? 1 : 0,res[i].trackingCategoryID, res[i].name, category_type, user_id, company_id);
+                        const addCategoryResult = await addCategory(Category.name, Category.trackingOptionID, null, Category.status.toString() === "ACTIVE" ? 1 : 0,res[i].trackingCategoryID, res[i].name, category_type, user_id, company_id);
                     } else {
                         console.log("category found...");
                         console.log("founded category id", Category.trackingOptionID);
@@ -281,7 +289,8 @@ async function syncCategories(user_id, company_id, tenant) {
                         console.log("founded category status", Category.status);
                         console.log("founded category parent", res[i].name);
                         console.log("")
-                        const updateCategoryResult = updateCategory(Category.name, Category.trackingOptionID, null, Category.status.toString() === "ACTIVE" ? 1 : 0,res[i].trackingCategoryID, res[i].name, category_type, company_id);
+                        const updateCategoryResult = await updateCategory(Category.name, Category.trackingOptionID, null, Category.status.toString() === "ACTIVE" ? 1 : 0,res[i].trackingCategoryID, res[i].name, category_type, company_id);
+                        console.log("updateCategoryResult",updateCategoryResult);
                     }
                 }
             }
@@ -363,7 +372,8 @@ async function syncSuppliers(user_id, company_id, tenant) {
             scope: scope
         });
 
-        // console.log("syncSuppliers token set:", TS);
+        const setAllSupplierStatusToZeroResponse = await setAllSupplierStatusToZero(company_id);
+        console.log("setAllSupplierStatusToZeroResponse", setAllSupplierStatusToZeroResponse);
 
         // await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
         await xero.setTokenSet(TS);
@@ -774,7 +784,7 @@ module.exports = {
                     const getUserData = await getUserByEmail(email);
                     console.log("checkUserEmailResult",checkUserEmailResult)
                     console.log("getUserData",getUserData)
-                    if(checkUserEmailResult[0].user_count === 1 && getUserData.role_id === 1 && getUserData.status === 0) {
+                    if(checkUserEmailResult[0].user_count === 1 && getUserData[0].role_id === 1 && getUserData[0].status === 0) {
                         return res.redirect(`${process.env.APP_URL}login/error/1003`);
                     }
                     else if(checkUserEmailResult[0].user_count === 0) {
@@ -843,12 +853,12 @@ module.exports = {
                 if (request_type === "sign-up") {
                     const checkUserEmailResult = await checkUserEmail(email);
                     const getUserData = await getUserByEmail(email);
-                    if(checkUserEmailResult[0].user_count === 1 && getUserData.role_id === 2) {
+                    if(checkUserEmailResult[0].user_count === 1 && getUserData[0].role_id === 2) {
                         //Check if user is not a normal user
                         return res.redirect(`${process.env.APP_URL}login/error/1002`);
                     }
                     else{
-                        if(checkUserEmailResult[0].user_count === 1 && getUserData.role_id === 1 && getUserData.user_type === "quickbooks") {
+                        if(checkUserEmailResult[0].user_count === 1 && getUserData[0].role_id === 1 && getUserData[0].user_type === "quickbooks") {
                             //check if user is not a qb user
                             return res.redirect(`${process.env.APP_URL}login/error/1001`);
                         }
@@ -870,7 +880,7 @@ module.exports = {
                                     }
                                     else{
                                         //if email found then we get user by his email
-                                        user_id = getUserData.id;
+                                        user_id = getUserData[0].id;
                                     }
                                     //get currency of company
                                     const currencyResponse = await xero.accountingApi.getCurrencies(tenantArray[i].tenantId, null, null);
@@ -1160,6 +1170,22 @@ module.exports = {
                 const setForeignKeyResult7 = await setForeignKeyDisable('suppliers');
                 const setForeignKeyResult8 = await setForeignKeyDisable('attachables');
                 const setForeignKeyResult9 = await setForeignKeyDisable('user_relations');
+
+                const getCompanyUsersResponse = await getCompanyUsers(company_id);
+                if(getCompanyUsersResponse.length > 0) {
+                    for (let i=0;i<getCompanyUsersResponse.length;i++) {
+                        const getSubscriptionResult = await getSubscription(getCompanyUsersResponse[i].id);
+                        console.log("canceling Subscription for user",getCompanyUsersResponse[i].email," sub id:",getSubscriptionResult[0].subscription_id);
+                        const deleted = await stripe.subscriptions.del(
+                            getSubscriptionResult[0].subscription_id
+                        );
+                        const deleteUserSubscriptionResult = await deleteUserSubscription(getCompanyUsersResponse[i].id);
+                    }
+                }
+                else {
+                    console.log("no user found for the company",company_id)
+                }
+
                 await removeExpenses(company_id).then(async () => {
                     await removeUserRelations(company_id).then(async () => {
                         await removeActivities(company_id).then(async () => {
@@ -1178,9 +1204,10 @@ module.exports = {
                                                     const setForeignKeyResult8 = await setForeignKeyEnable('attachables');
                                                     const setForeignKeyResult9 = await setForeignKeyEnable('user_relations');
                                                     const user_companies_after_deletion = await getCompanyByUserID(user_id);
+                                                    console.log("user_companies_after_deletion",user_companies_after_deletion);
                                                     uc_length = user_companies_after_deletion.length;
                                                     uc_active_company = user_companies_after_deletion[0].id;
-                                                    if (user_companies_after_deletion.length > 1) {
+                                                    if (user_companies_after_deletion.length > 0) {
                                                         console.log("user_companies", user_companies_after_deletion);
                                                         const disableAllCompanyResult = await disableAllCompany(user_id);
                                                         const activateCompanyResult = await activateCompany(user_companies_after_deletion[0].id);

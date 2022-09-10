@@ -14,6 +14,8 @@ const {sign} = require("jsonwebtoken");
 const OAuthClient = require('intuit-oauth');
 const parseString = require('xml2js').parseString;
 const nodeMailer = require("nodemailer");
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const {subject, template} = require('../assets/mailConfig');
 
 const {
     updateLoginToken,
@@ -65,7 +67,10 @@ const {
     removeCompany,
     getActivateCompany,
     updateCompanyToken,
-    getCompanyById
+    getCompanyById,
+    getCompanyUsers,
+    getSubscription,
+    deleteUserSubscription
 } = require("../users/user.service");
 
 
@@ -1417,6 +1422,22 @@ module.exports = {
                 const setForeignKeyResult7 = await setForeignKeyDisable('suppliers');
                 const setForeignKeyResult8 = await setForeignKeyDisable('attachables');
                 const setForeignKeyResult9 = await setForeignKeyDisable('user_relations');
+
+                const getCompanyUsersResponse = await getCompanyUsers(company_id);
+                if(getCompanyUsersResponse.length > 0) {
+                    for (let i=0;i<getCompanyUsersResponse.length;i++) {
+                        const getSubscriptionResult = await getSubscription(getCompanyUsersResponse[i].id);
+                        console.log("canceling Subscription for user",getCompanyUsersResponse[i].email," sub id:",getSubscriptionResult[0].subscription_id);
+                        const deleted = await stripe.subscriptions.del(
+                            getSubscriptionResult[0].subscription_id
+                        );
+                        const deleteUserSubscriptionResult = await deleteUserSubscription(getCompanyUsersResponse[i].id);
+                    }
+                }
+                else {
+                    console.log("no user found for the company",company_id)
+                }
+
                 await removeExpenses(company_id).then(async () => {
                     await removeUserRelations(company_id).then(async () => {
                         await removeActivities(company_id).then(async () => {

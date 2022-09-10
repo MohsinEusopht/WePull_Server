@@ -467,9 +467,10 @@ module.exports = {
         })
     },
     updateCategory:(category_name, category_id, category_parent, category_status, parent_category_id, parent_category_name, category_type, company_id) => {
+        console.log(`UPDATE categories SET category_name = ${category_name}, category_parent = ${category_parent}, category_status = ${category_status}, parent_category_id = ${parent_category_id}, parent_category_name = ${parent_category_name}, category_type = ${category_type} WHERE category_id = ${category_id} AND company_id = ${company_id}`)
         return new Promise((resolve, reject) => {
             pool.query(
-                `UPDATE categories SET category_name = ?, category_parent = ?, category_status = ?, parent_category_id = ?, parent_category_name = ?, category_type = ? WHERE category_id = ? AND company_id = ?`, [category_name, category_id, category_parent, category_status, parent_category_id, parent_category_name, category_type, category_id, company_id],
+                `UPDATE categories SET category_name = ?, category_parent = ?, category_status = ?, parent_category_id = ?, parent_category_name = ?, category_type = ? WHERE category_id = ? AND company_id = ?`, [category_name, category_parent, category_status, parent_category_id, parent_category_name, category_type, category_id, company_id],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
@@ -511,7 +512,7 @@ module.exports = {
     updateAccount: (name, account_id, description, currency_code, status, company_id) => {
         return new Promise((resolve, reject) => {
             pool.query(
-                `UPDATE accounts SET name = ?, account_type = ?, description = ?, currency_code = ?, status = ? WHERE account_id = ? AND company_id = ?`, [name, account_id, account_type, description, currency_code, status, account_id, company_id],
+                `UPDATE accounts SET name = ?, account_id = ?, description = ?, currency_code = ?, status = ? WHERE account_id = ? AND company_id = ?`, [name, account_id, description, currency_code, status, account_id, company_id],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
@@ -607,10 +608,10 @@ module.exports = {
             );
         })
     },
-    checkExpense: (expense_id ,company_id) => {
+    checkExpense: (expense_id , line_item ,company_id) => {
         return new Promise((resolve, reject) => {
             pool.query(
-                `SELECT count(*) as 'expense_count' FROM expenses WHERE expense_id = ? and company_id = ?`, [expense_id, company_id],
+                `SELECT count(*) as 'expense_count' FROM expenses WHERE expense_id = ? AND line_item = ? AND company_id = ?`, [expense_id, line_item, company_id],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
@@ -1141,6 +1142,118 @@ module.exports = {
                         // console.log(error);
                         return reject(error);
                     }
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    getCompanyUsers: (company_id) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `SELECT * FROM users WHERE company_id = ? AND role_id = 2`, [company_id],
+                (error, results, fields) => {
+                    if (error) {
+                        // console.log(error);
+                        return reject(error);
+                    }
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    insertForgotPasswordToken: (email, token) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `INSERT INTO reset_password(email, token) VALUES (?, ?)`, [email, token],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    updateForgotPasswordToken: (email, token) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `UPDATE reset_password SET token = ? WHERE email = ?`, [token, email],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    checkForgotPasswordToken: (email) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `SELECT count(*) as token_count FROM reset_password WHERE email = ?`, [email],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    checkForgotPasswordTokenWithToken: (email, token) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `SELECT count(*) as token_count FROM reset_password WHERE email = ? AND token = ?`, [email, token],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    removeForgotPasswordToken: (email) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `DELETE FROM reset_password WHERE email = ?`, [email],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    setAllSupplierStatusToZero: (company_id) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `UPDATE suppliers SET status = 0 WHERE company_id = ?`, [company_id],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolov(results);
+                }
+            );
+        })
+    },
+    setAllCategoryStatusToZero: (company_id) => {
+        return new Promise((resolov, reject) => {
+            pool.query(
+                `UPDATE categories SET category_status = 0 WHERE company_id = ?`, [company_id],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
                     return resolov(results);
                 }
             );

@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const nodeMailer = require("nodemailer");
 const {supplierCount} = require("./user.service");
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+const {subject, template} = require('../assets/mailConfig');
 const {
     getUserByEmail,
     getUser,
@@ -45,10 +46,50 @@ const {
     updateUser,
     updateUserProfile,
     deleteAllUserRelation,
-    changeUserPassword
+    changeUserPassword,
+    insertForgotPasswordToken,
+    updateForgotPasswordToken,
+    checkForgotPasswordTokenWithToken,
+    checkForgotPasswordToken,
+    removeForgotPasswordToken
 } = require("./user.service");
 const { sign } = require("jsonwebtoken");
 
+async function sendEmail(email, first_name, href) {
+    try {
+        console.log("sending email to", email);
+        let transporter = nodeMailer.createTransport({
+            host: "smtp.mail.yahoo.com",
+            port: 465,
+            auth: {
+                user: "mohsinjaved414@yahoo.com",
+                pass: "exvnhtussrqkmqcr"
+            },
+            debug: true, // show debug output
+            logger: true
+        });
+        let html = template("forgot_password", first_name, href);
+        let mailOptions = {
+            from: 'mohsinjaved414@yahoo.com',
+            to: email,
+            subject: subject.forgot_password,
+            html: html
+        }
+
+        await transporter.sendMail(mailOptions);
+
+        return {
+            status: 200,
+            message: "Email sent successfully"
+        };
+    }
+    catch (err) {
+        return {
+            status: 500,
+            message: err
+        };
+    }
+}
 
 module.exports = {
     defaultFun: async (req, res) => {
@@ -67,11 +108,11 @@ module.exports = {
                 if (result) {
                     if(getUserData[0].status === 1) {
                         const getSubscription = await getSubscriptionByUserID(getUserData[0].id);
-                        const subscription = await stripe.subscriptions.retrieve(
-                            getSubscription[0].subscription_id
-                        );
-                        console.log("user subscription",subscription.status);
-                        if(subscription.status === "active") {
+                        // const subscription = await stripe.subscriptions.retrieve(
+                        //     getSubscription[0].subscription_id
+                        // );
+                        // console.log("user subscription",subscription.status);
+                        // if(subscription.status === "active") {
                             getUserData[0].password = undefined;
                             const getCompany = await getCompanyByID(getUserData[0].company_id);
 
@@ -83,13 +124,14 @@ module.exports = {
                                 data: getUserData[0],
                                 company_data: getCompany[0]
                             });
-                        }
-                        else {
-                            return res.json({
-                                status: 500,
-                                message: "User subscription expired, Please contact your company admin"
-                            });
-                        }
+
+                        // }
+                        // else {
+                        //     return res.json({
+                        //         status: 500,
+                        //         message: "User subscription expired, Please contact your company admin"
+                        //     });
+                        // }
                     }
                     else {
                         return res.json({
@@ -115,6 +157,97 @@ module.exports = {
             return res.json({
                 status: 500,
                 message: "Something went wrong."
+            });
+        }
+    },
+    forgotPassword: async (req, res) => {
+        try {
+            const body = req.body;
+            const getUserData = await getUserByEmail(body.email);
+            if (getUserData[0]) {
+                const token = crypto.randomBytes(48).toString('hex');
+                const checkIfForgotTokenExist = await checkForgotPasswordToken(body.email)
+                if(checkIfForgotTokenExist[0].token_count === 0) {
+                    const result = insertForgotPasswordToken(body.email, token);
+                    console.log("insertForgotPasswordToken");
+                }
+                else {
+                    const result = updateForgotPasswordToken(body.email, token);
+                    console.log("updateForgotPasswordToken");
+                }
+
+                let href = process.env.APP_URL+"reset-password/"+body.email+"/"+token;
+                await sendEmail(body.email, getUserData[0].first_name, href);
+
+                return res.json({
+                    status: 200,
+                    message: "Password reset link sent successfully"
+                });
+            } else {
+                return res.json({
+                    status: 500,
+                    message: "Email do not exist"
+                });
+            }
+        } catch (e) {
+            console.log("error", e);
+            return res.json({
+                status: 500,
+                message: "Something went wrong."
+            });
+        }
+    },
+    checkForgotPasswordToken: async (req, res) => {
+        try {
+            const body = req.body;
+            const getUserData = await getUserByEmail(body.email);
+            if (getUserData[0]) {
+                const checkIfForgotTokenExist = await checkForgotPasswordTokenWithToken(body.email, body.token)
+                if(checkIfForgotTokenExist[0].token_count === 1) {
+                    return res.json({
+                        status: 200,
+                        message: "Password reset link is valid"
+                    });
+                }
+                else {
+                    return res.json({
+                        status: 500,
+                        message: "Password reset link is expired"
+                    });
+                }
+            } else {
+                return res.json({
+                    status: 500,
+                    message: "Email do not exist"
+                });
+            }
+        } catch (e) {
+            console.log("error", e);
+            return res.json({
+                status: 500,
+                message: "Something went wrong."
+            });
+        }
+    },
+    resetUserPassword: async (req, res) => {
+        const body = req.body;
+        console.log("body",body);
+        const getUserData = await getUserByEmail(body.email);
+        if (getUserData[0]) {
+            const salt = genSaltSync(10);
+            let encrypted_password = hashSync(body.password, salt);
+            const changePasswordResult = await changeUserPassword(getUserData[0].id,encrypted_password);
+            const removeToken = await removeForgotPasswordToken(body.email);
+            console.log("password reset", changePasswordResult);
+            return res.json({
+                status: 200,
+                message: "Password reset successfully, please login your account with your new password",
+            });
+        }
+        else {
+            return res.json({
+                status: 500,
+                message: "User do not exist",
             });
         }
     },

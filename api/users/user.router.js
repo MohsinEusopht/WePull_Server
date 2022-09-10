@@ -4,6 +4,7 @@ const { validateAdminPermission } = require("../../permissions/admin_permission"
 const {
     defaultFun,
     login,
+    forgotPassword,
     auth_login,
     getRoles,
     getLoginToken,
@@ -35,7 +36,9 @@ const {
     updateUser,
     updateUserProfile,
     changeUserPassword,
-    subscribe
+    subscribe,
+    checkForgotPasswordToken,
+    resetUserPassword
 } = require("./user.controller");
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const moment = require('moment');
@@ -44,6 +47,11 @@ router.get("/", defaultFun);
 
 //Login
 router.post("/login", login);
+
+//Forgot password
+router.post('/forgotPassword', forgotPassword);
+router.post('/checkForgotPasswordToken', checkForgotPasswordToken);
+router.post('/resetUserPassword', resetUserPassword)
 
 //Xero , QB login
 router.post("/auth_login", auth_login);
