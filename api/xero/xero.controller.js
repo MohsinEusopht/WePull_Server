@@ -1343,5 +1343,35 @@ module.exports = {
                 message: "Loading attachment failed"
             })
         }
+    },
+    syncEmail: async (req, res) => {
+        try {
+            const user_id = req.params.user_id;
+            const token = await refreshToken(user_id);
+
+            const getUser = await getUserById(user_id);
+            const validTokenSet = await xero.refreshWithRefreshToken(process.env.XERO_CLIENT_ID, process.env.XERO_SECRET_ID, getUser[0].xero_refresh_token);
+            let array = JSON.parse(JSON.stringify(validTokenSet));
+            xero_id_token = array.id_token;
+            const jwtTokenDecode = jwt.decode(xero_id_token);
+            let email = jwtTokenDecode.email;
+            console.log("email", email);
+            const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+            console.log("updateXeroAccountEmailResult");
+            getUser[0].password = undefined;
+            return res.json({
+                status: 200,
+                message: "Email refreshed successfully",
+                user: getUser[0]
+            })
+        }
+        catch (err) {
+            // const error = JSON.stringify(err.response, null, 2)
+            console.log(err);
+            return res.json({
+                status: 500,
+                message: "Loading attachment failed"
+            })
+        }
     }
 };

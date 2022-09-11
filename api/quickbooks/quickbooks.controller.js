@@ -1143,213 +1143,20 @@ module.exports = {
 
 
 
-                    const checkCompanyExistResult = await checkCompanyExist(decodedIdToken.realmid);
-                    const getCompanyByTenantIdResult = await getCompanyByTenant(decodedIdToken.realmid);
-                    console.log("getCompanyByTenantIdResult",getCompanyByTenantIdResult)
-                    let getUserData;
-                    if(checkCompanyExistResult[0].company_count === 1) {
-                        getUserData = await getUserById(getCompanyByTenantIdResult[0].user_id);
-                    }
-                    else {
-                        getUserData = null;
-                    }
-                    console.log("getUserData",getUserData);
-                    console.log("checkCompanyExistResult",checkCompanyExistResult);
+                    // const checkCompanyExistResult = await checkCompanyExist(decodedIdToken.realmid);
+                    // const getCompanyByTenantIdResult = await getCompanyByTenant(decodedIdToken.realmid);
+                    // console.log("getCompanyByTenantIdResult",getCompanyByTenantIdResult)
+                    // let getUserData;
+                    // if(checkCompanyExistResult[0].company_count === 1) {
+                    //     getUserData = await getUserById(getCompanyByTenantIdResult[0].user_id);
+                    // }
+                    // else {
+                    //     getUserData = null;
+                    // }
+                    // console.log("getUserData",getUserData);
+                    // console.log("checkCompanyExistResult",checkCompanyExistResult);
 
-                    if(request_type === "sign-up" || request_type === "connect") {
-                        console.log("request_type",request_type)
-                        //User is trying to sign up or connect a company
-                        if (checkCompanyExistResult[0].company_count === 1) {
-                            //User already exist no need to create new account
-                            if(request_type === "sign-up" || request_type === "connect" && getUserData[0].role_id !== 2) {
-                                console.log("user is admin", getUserData[0].role_id);
-                                if(request_type === "sign-up" || request_type === "connect" && getUserData[0].role_id === 1 && getUserData[0].user_type !== "xero") {
-                                    console.log("user is not an xero user");
-                                    if (request_type === "sign-up" && getUserData[0].role_id === 1 && getUserData[0].user_type === "quickbooks" && getUserData[0].status === 0) {
-                                        console.log("user do not exist and status is 0");
-                                        return res.redirect(`${process.env.APP_URL}login/error/1003`);
-                                        //Check if user exist as a xero user but status is 0
-                                    }
-                                    else if(request_type === "sign-up" && getUserData[0].role_id === 1 && getUserData[0].user_type === "quickbooks" && getUserData[0].status === 1) {
-                                        console.log("user exist and status is 1 just need to refresh token and redirect user to login page");
-                                        console.log("updating email");
-                                        const updateXeroAccountEmailResult = await updateAccountEmail(getUserData[0].id, email);
-                                        console.log("updating qb tokens")
-                                        const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
-
-                                        const updateLoginTokenResult = await updateLoginToken(getUserData[0].id, token, null, null, null, null, 1);
-                                        let user_id = getUserData[0].id;
-
-                                        // Disable all companies in xero and then enable current selected one.
-                                        const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
-                                        const disableAllCompanyResult = await disableAllCompany(user_id);
-                                        const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
-
-                                        console.log("user already exist");
-                                        console.log("redirecting to",`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token)
-                                        return res.redirect(`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token);
-                                    }
-                                    else if (request_type === "connect" && getUserData[0].role_id === 1 && getUserData[0].user_type === "quickbooks") {
-                                        const checkCompanyExistResult = await checkCompanyExist(decodedIdToken.realmid);
-                                        if (checkCompanyExistResult[0].company_count === 1) {
-                                            console.log("user is connecting a company but it is already exist in out db")
-                                            return res.redirect(`${process.env.APP_URL}companies`);
-                                        }
-                                        else if (checkCompanyExistResult[0].company_count === 0) {
-                                            let NameValue = companyArray.NameValue;
-
-                                            let IndustryType = NameValue.filter(el => el.Name._text === 'IndustryType');
-                                            let CompanyType = NameValue.filter(el => el.Name._text === 'CompanyType');
-                                            // const createCompanyResult = await createCompany(null ,jwtTokenDecode.realmid,companyArray.IntuitResponse.CompanyInfo.CompanyName._text,companyArray.IntuitResponse.CompanyInfo.MetaData.CreateTime._text, companyArray.IntuitResponse.CompanyInfo._attributes.domain, null,'USD',CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null,IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null,createUsersResult.insertId);
-                                            const createCompanyResult = await createCompany(companyArray.CompanyName._text ,null, decodedIdToken.realmid, CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null, IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null, "quickbooks","USD", getUserData[0].id, companyArray.MetaData.CreateTime._text);
-                                            console.log("company created",companyArray.CompanyName._text)
-                                            const createUserRoleResult = await createUserRole(getUserData[0].id, createCompanyResult.insertId, null, 1, null);
-                                            console.log("role created company id",createCompanyResult.insertId,"user id",user_id);
-                                            let company_id = createCompanyResult.insertId;
-
-                                            console.log("updating qb tokens")
-                                            const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
-
-                                            let accounts = await getAccounts(qb_access_token, decodedIdToken.realmid);
-
-                                            let purchases = await getPurchases(qb_access_token, decodedIdToken.realmid, "all");
-                                            let bills = await getBills(qb_access_token, decodedIdToken.realmid, "all");
-                                            let attachables = await getAllAttachables(qb_access_token, decodedIdToken.realmid);
-
-                                            let categories = await getCategories(qb_access_token, decodedIdToken.realmid);
-                                            let classes = await getClasses(qb_access_token, decodedIdToken.realmid);
-
-                                            let suppliers = await getSuppliers(qb_access_token, decodedIdToken.realmid, "all");
-
-
-                                            const accountArray = JSON.parse(accounts).IntuitResponse.QueryResponse.Account;
-
-                                            const purchaseArray = JSON.parse(purchases).IntuitResponse.QueryResponse.Purchase;
-                                            const billArray = JSON.parse(bills).IntuitResponse.QueryResponse.Bill;
-                                            const attachableArray = JSON.parse(attachables).IntuitResponse.QueryResponse.Attachable;
-
-                                            const categoryArray = JSON.parse(categories).IntuitResponse.QueryResponse.Department;
-                                            const classArray = JSON.parse(classes).IntuitResponse.QueryResponse.Class;
-
-                                            const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
-
-
-                                            await syncCategories(getUserData[0].id, company_id, categoryArray).then(async () => {
-                                                await syncClasses(getUserData[0].id, company_id, classArray).then(async () => {
-                                                    await syncAccounts(getUserData[0].id, company_id, accountArray).then(async () => {
-                                                        await syncSuppliers(getUserData[0].id, company_id, supplierArray).then(async () => {
-                                                            await syncPurchases(getUserData[0].id, company_id, purchaseArray).then(async () => {
-                                                                await syncAttachables(getUserData[0].id, company_id, attachableArray).then(() => {
-                                                                    storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, getUserData[0].id);
-                                                                })
-                                                            });
-                                                        });
-                                                    });
-                                                });
-                                            });
-
-                                            // Disable all companies in xero and then enable current selected one.
-                                            const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
-                                            const disableAllCompanyResult = await disableAllCompany(getUserData[0].id);
-                                            const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
-                                            return res.redirect(`${process.env.APP_URL}companies`);
-                                        }
-                                    }
-                                }
-                                else {
-                                    //Check if user exist as a xero user
-                                    return res.redirect(`${process.env.APP_URL}login/error/1004`);
-                                }
-                            }
-                            else {
-                                //Check if user exist as an user
-                                return res.redirect(`${process.env.APP_URL}login/error/1002`);
-                            }
-                        }
-                        else if (checkCompanyExistResult[0].company_count === 0) {
-                            //Check if user exist in our db, 0 = not exist . then create new qb user
-                            console.log("creating qb account...");
-                            let user_id;
-                            let checkUserByEmail = await checkUserEmail(email);
-                            if(checkUserByEmail[0].user_count === 0) {
-                                const createUsersResult = await createUserAccount(first_name, last_name, email, null, null, null, null, null, token, "quickbooks");
-                                user_id= createUsersResult.insertId;
-                            }
-                            else {
-                                let getUserByEmailResult = await getUserByEmail(email);
-                                console.log("getUserByEmailResult",getUserByEmailResult);
-                                user_id = getUserByEmailResult[0].id;
-                                console.log("updateLoginToken");
-                                const updateLoginTokenResult = await updateLoginToken(getUserByEmailResult[0].id, token, null, null, null, null, 1);
-                            }
-
-                            const checkUserCompanyResult = await checkUserCompanyByTenant(decodedIdToken.realmid);
-                            let company_id= null;
-                            if (checkUserCompanyResult[0].company_count === 0) {
-                                let NameValue = companyArray.NameValue;
-                                let IndustryType = NameValue.filter(el => el.Name._text === 'IndustryType');
-                                let CompanyType = NameValue.filter(el => el.Name._text === 'CompanyType');
-                                // const createCompanyResult = await createCompany(null ,jwtTokenDecode.realmid,companyArray.IntuitResponse.CompanyInfo.CompanyName._text,companyArray.IntuitResponse.CompanyInfo.MetaData.CreateTime._text, companyArray.IntuitResponse.CompanyInfo._attributes.domain, null,'USD',CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null,IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null,createUsersResult.insertId);
-                                const createCompanyResult = await createCompany(companyArray.CompanyName._text ,null, decodedIdToken.realmid, CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null, IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null, "quickbooks","USD", user_id, companyArray.MetaData.CreateTime._text);
-                                console.log("company created",companyArray.CompanyName._text)
-                                const createUserRoleResult = await createUserRole(user_id, createCompanyResult.insertId, null, 1, null);
-                                console.log("role created company id",createCompanyResult.insertId,"user id",user_id);
-                                company_id = createCompanyResult.insertId;
-
-                                console.log("updating qb tokens")
-                                const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
-
-                                let accounts = await getAccounts(qb_access_token, decodedIdToken.realmid);
-
-                                let purchases = await getPurchases(qb_access_token, decodedIdToken.realmid, "all");
-                                let bills = await getBills(qb_access_token, decodedIdToken.realmid, "all");
-                                let attachables = await getAllAttachables(qb_access_token, decodedIdToken.realmid);
-
-                                let categories = await getCategories(qb_access_token, decodedIdToken.realmid);
-                                let classes = await getClasses(qb_access_token, decodedIdToken.realmid);
-
-                                let suppliers = await getSuppliers(qb_access_token, decodedIdToken.realmid, "all");
-
-
-                                const accountArray = JSON.parse(accounts).IntuitResponse.QueryResponse.Account;
-
-                                const purchaseArray = JSON.parse(purchases).IntuitResponse.QueryResponse.Purchase;
-                                const billArray = JSON.parse(bills).IntuitResponse.QueryResponse.Bill;
-                                const attachableArray = JSON.parse(attachables).IntuitResponse.QueryResponse.Attachable;
-
-                                const categoryArray = JSON.parse(categories).IntuitResponse.QueryResponse.Department;
-                                const classArray = JSON.parse(classes).IntuitResponse.QueryResponse.Class;
-
-                                const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
-
-
-                                await syncCategories(user_id, company_id, categoryArray).then(async () => {
-                                    await syncClasses(user_id, company_id, classArray).then(async () => {
-                                        await syncAccounts(user_id, company_id, accountArray).then(async () => {
-                                            await syncSuppliers(user_id, company_id, supplierArray).then(async () => {
-                                                await syncPurchases(user_id, company_id, purchaseArray).then(async () => {
-                                                    await syncAttachables(user_id, company_id, attachableArray).then(() => {
-                                                        storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
-                                                    })
-                                                });
-                                            });
-                                        });
-                                    });
-                                });
-
-                                // Disable all companies in xero and then enable current selected one.
-                                const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
-                                const disableAllCompanyResult = await disableAllCompany(user_id);
-                                const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
-                                console.log("sending email....");
-                                // const sendEmailResult = await sendEmail(email, first_name);
-                                // console.log("sendEmailResult",sendEmailResult);
-                                console.log("redirecting to ",`${process.env.APP_URL}auth/sign-up/quickbooks/` + encodeURIComponent(email) + `/` + token);
-                                return res.redirect(`${process.env.APP_URL}auth/sign-up/quickbooks/` + encodeURIComponent(email) + `/` + token);
-                            }
-                        }
-                    }
-                    else if(request_type === "login") {
+                    if(request_type === "login") {
                         console.log("user is trying to login their account..");
                         const checkCompanyExistResult = await checkCompanyExist(decodedIdToken.realmid);
                         const getCompanyByTenantIdResult = await getCompanyByTenant(decodedIdToken.realmid);
@@ -1380,6 +1187,330 @@ module.exports = {
                             return res.redirect(`${process.env.APP_URL}login/error/404`);
                         }
                     }
+                    else if(request_type === "sign-up" || request_type === "connect") {
+                        const checkUserEmailResult = await checkUserEmail(email);
+                        const getUserData = await getUserByEmail(email);
+                        if(checkUserEmailResult[0].user_count === 1 && getUserData[0].role_id === 2) {
+                            //Check if user is not a normal user
+                            return res.redirect(`${process.env.APP_URL}login/error/1002`);
+                        }
+                        else {
+                            if(checkUserEmailResult[0].user_count === 1 && getUserData[0].role_id === 1 && getUserData[0].user_type === "xero") {
+                                //check if user is not a qb user
+                                return res.redirect(`${process.env.APP_URL}login/error/1004`);
+                            }
+                            else {
+                                let isCompanyFound = false;
+                                let user_id;
+                                let company_id;
+                                const checkCompanyExistResult = await checkCompanyExist(decodedIdToken.realmid);
+                                if(checkCompanyExistResult[0].company_count === 0) {
+                                    const getUserData = await getUserByEmail(email);
+                                    const checkUserByEmailResult = await checkUserEmail(email);
+                                    if (checkUserByEmailResult[0].user_count === 0) {
+                                        //if email fo not found then we create an user account
+                                        const createUsersResult = await createUserAccount(first_name, last_name, email, null, null, null, null, null, token, "quickbooks");
+                                        user_id = createUsersResult.insertId;
+                                    }
+                                    else{
+                                        //if email found then we get user by his email
+                                        user_id = getUserData[0].id;
+                                    }
+
+                                    let NameValue = companyArray.NameValue;
+
+                                    let IndustryType = NameValue.filter(el => el.Name._text === 'IndustryType');
+                                    let CompanyType = NameValue.filter(el => el.Name._text === 'CompanyType');
+                                    const createCompanyResult = await createCompany(companyArray.CompanyName._text ,null, decodedIdToken.realmid, CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null, IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null, "quickbooks","USD", getUserData[0].id, companyArray.MetaData.CreateTime._text);
+                                    console.log("company created",companyArray.CompanyName._text)
+                                    company_id = createCompanyResult.insertId;
+                                    const createUserRoleResult = await createUserRole(getUserData[0].id, createCompanyResult.insertId, null, 1, null);
+                                    console.log("role created company id",createCompanyResult.insertId,"user id",user_id);
+                                    const updateQbAccountEmailResult = await updateAccountEmail(user_id, email);
+                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
+                                    const updateLoginTokenResult = await updateLoginToken(user_id, token, null, null, null, null, 1);
+
+                                    let accounts = await getAccounts(qb_access_token, decodedIdToken.realmid);
+
+                                    let purchases = await getPurchases(qb_access_token, decodedIdToken.realmid, "all");
+                                    let bills = await getBills(qb_access_token, decodedIdToken.realmid, "all");
+                                    let attachables = await getAllAttachables(qb_access_token, decodedIdToken.realmid);
+
+                                    let categories = await getCategories(qb_access_token, decodedIdToken.realmid);
+                                    let classes = await getClasses(qb_access_token, decodedIdToken.realmid);
+
+                                    let suppliers = await getSuppliers(qb_access_token, decodedIdToken.realmid, "all");
+
+                                    const accountArray = JSON.parse(accounts).IntuitResponse.QueryResponse.Account;
+
+                                    const purchaseArray = JSON.parse(purchases).IntuitResponse.QueryResponse.Purchase;
+                                    const billArray = JSON.parse(bills).IntuitResponse.QueryResponse.Bill;
+                                    const attachableArray = JSON.parse(attachables).IntuitResponse.QueryResponse.Attachable;
+
+                                    const categoryArray = JSON.parse(categories).IntuitResponse.QueryResponse.Department;
+                                    const classArray = JSON.parse(classes).IntuitResponse.QueryResponse.Class;
+
+                                    const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
+
+
+                                    await syncCategories(getUserData[0].id, company_id, categoryArray).then(async () => {
+                                        await syncClasses(getUserData[0].id, company_id, classArray).then(async () => {
+                                            await syncAccounts(getUserData[0].id, company_id, accountArray).then(async () => {
+                                                await syncSuppliers(getUserData[0].id, company_id, supplierArray).then(async () => {
+                                                    await syncPurchases(getUserData[0].id, company_id, purchaseArray).then(async () => {
+                                                        await syncAttachables(getUserData[0].id, company_id, attachableArray).then(() => {
+                                                            storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, getUserData[0].id);
+                                                        })
+                                                    });
+                                                });
+                                            });
+                                        });
+                                    });
+
+                                    const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
+                                    const disableAllCompanyResult = await disableAllCompany(user_id);
+                                    const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
+
+                                    if(request_type === 'sign-up') {
+                                        return res.redirect(`${process.env.APP_URL}auth/sign-up/quickbooks/` + encodeURIComponent(email) + `/` + token);
+                                    }
+                                    else if(request_type === "connect") {
+                                        return res.redirect(`${process.env.APP_URL}companies`);
+                                    }
+                                }
+                                else {
+                                    console.log("already exist reditect to")
+                                    console.log(`${process.env.APP_URL}companies`);
+                                    return res.redirect(`${process.env.APP_URL}companies`);
+                                }
+                            }
+                        }
+                    }
+
+                    // if(request_type === "sign-up" || request_type === "connect") {
+                    //     console.log("request_type",request_type)
+                    //     //User is trying to sign up or connect a company
+                    //     if (checkCompanyExistResult[0].company_count === 1) {
+                    //         //User already exist no need to create new account
+                    //         if(request_type === "sign-up" || request_type === "connect" && getUserData[0].role_id !== 2) {
+                    //             console.log("user is admin", getUserData[0].role_id);
+                    //             if(request_type === "sign-up" || request_type === "connect" && getUserData[0].role_id === 1 && getUserData[0].user_type !== "xero") {
+                    //                 console.log("user is not an xero user");
+                    //                 if (request_type === "sign-up" && getUserData[0].role_id === 1 && getUserData[0].user_type === "quickbooks" && getUserData[0].status === 0) {
+                    //                     console.log("user do not exist and status is 0");
+                    //                     return res.redirect(`${process.env.APP_URL}login/error/1003`);
+                    //                     //Check if user exist as a xero user but status is 0
+                    //                 }
+                    //                 else if(request_type === "sign-up" && getUserData[0].role_id === 1 && getUserData[0].user_type === "quickbooks" && getUserData[0].status === 1) {
+                    //                     console.log("user exist and status is 1 just need to refresh token and redirect user to login page");
+                    //                     console.log("updating email");
+                    //                     const updateXeroAccountEmailResult = await updateAccountEmail(getUserData[0].id, email);
+                    //                     console.log("updating qb tokens")
+                    //                     const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
+                    //
+                    //                     const updateLoginTokenResult = await updateLoginToken(getUserData[0].id, token, null, null, null, null, 1);
+                    //                     let user_id = getUserData[0].id;
+                    //
+                    //                     // Disable all companies in xero and then enable current selected one.
+                    //                     const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
+                    //                     const disableAllCompanyResult = await disableAllCompany(user_id);
+                    //                     const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
+                    //
+                    //                     console.log("user already exist");
+                    //                     console.log("redirecting to",`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token)
+                    //                     return res.redirect(`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token);
+                    //                 }
+                    //                 else if (request_type === "connect" && getUserData[0].role_id === 1 && getUserData[0].user_type === "quickbooks") {
+                    //                     const checkCompanyExistResult = await checkCompanyExist(decodedIdToken.realmid);
+                    //                     if (checkCompanyExistResult[0].company_count === 1) {
+                    //                         console.log("user is connecting a company but it is already exist in out db")
+                    //                         return res.redirect(`${process.env.APP_URL}companies`);
+                    //                     }
+                    //                     else if (checkCompanyExistResult[0].company_count === 0) {
+                    //                         let NameValue = companyArray.NameValue;
+                    //
+                    //                         let IndustryType = NameValue.filter(el => el.Name._text === 'IndustryType');
+                    //                         let CompanyType = NameValue.filter(el => el.Name._text === 'CompanyType');
+                    //                         // const createCompanyResult = await createCompany(null ,jwtTokenDecode.realmid,companyArray.IntuitResponse.CompanyInfo.CompanyName._text,companyArray.IntuitResponse.CompanyInfo.MetaData.CreateTime._text, companyArray.IntuitResponse.CompanyInfo._attributes.domain, null,'USD',CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null,IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null,createUsersResult.insertId);
+                    //                         const createCompanyResult = await createCompany(companyArray.CompanyName._text ,null, decodedIdToken.realmid, CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null, IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null, "quickbooks","USD", getUserData[0].id, companyArray.MetaData.CreateTime._text);
+                    //                         console.log("company created",companyArray.CompanyName._text)
+                    //                         const createUserRoleResult = await createUserRole(getUserData[0].id, createCompanyResult.insertId, null, 1, null);
+                    //                         console.log("role created company id",createCompanyResult.insertId,"user id",user_id);
+                    //                         let company_id = createCompanyResult.insertId;
+                    //
+                    //                         console.log("updating qb tokens")
+                    //                         const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
+                    //
+                    //                         let accounts = await getAccounts(qb_access_token, decodedIdToken.realmid);
+                    //
+                    //                         let purchases = await getPurchases(qb_access_token, decodedIdToken.realmid, "all");
+                    //                         let bills = await getBills(qb_access_token, decodedIdToken.realmid, "all");
+                    //                         let attachables = await getAllAttachables(qb_access_token, decodedIdToken.realmid);
+                    //
+                    //                         let categories = await getCategories(qb_access_token, decodedIdToken.realmid);
+                    //                         let classes = await getClasses(qb_access_token, decodedIdToken.realmid);
+                    //
+                    //                         let suppliers = await getSuppliers(qb_access_token, decodedIdToken.realmid, "all");
+                    //
+                    //
+                    //                         const accountArray = JSON.parse(accounts).IntuitResponse.QueryResponse.Account;
+                    //
+                    //                         const purchaseArray = JSON.parse(purchases).IntuitResponse.QueryResponse.Purchase;
+                    //                         const billArray = JSON.parse(bills).IntuitResponse.QueryResponse.Bill;
+                    //                         const attachableArray = JSON.parse(attachables).IntuitResponse.QueryResponse.Attachable;
+                    //
+                    //                         const categoryArray = JSON.parse(categories).IntuitResponse.QueryResponse.Department;
+                    //                         const classArray = JSON.parse(classes).IntuitResponse.QueryResponse.Class;
+                    //
+                    //                         const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
+                    //
+                    //
+                    //                         await syncCategories(getUserData[0].id, company_id, categoryArray).then(async () => {
+                    //                             await syncClasses(getUserData[0].id, company_id, classArray).then(async () => {
+                    //                                 await syncAccounts(getUserData[0].id, company_id, accountArray).then(async () => {
+                    //                                     await syncSuppliers(getUserData[0].id, company_id, supplierArray).then(async () => {
+                    //                                         await syncPurchases(getUserData[0].id, company_id, purchaseArray).then(async () => {
+                    //                                             await syncAttachables(getUserData[0].id, company_id, attachableArray).then(() => {
+                    //                                                 storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, getUserData[0].id);
+                    //                                             })
+                    //                                         });
+                    //                                     });
+                    //                                 });
+                    //                             });
+                    //                         });
+                    //
+                    //                         // Disable all companies in xero and then enable current selected one.
+                    //                         const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
+                    //                         const disableAllCompanyResult = await disableAllCompany(getUserData[0].id);
+                    //                         const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
+                    //                         return res.redirect(`${process.env.APP_URL}companies`);
+                    //                     }
+                    //                 }
+                    //             }
+                    //             else {
+                    //                 //Check if user exist as a xero user
+                    //                 return res.redirect(`${process.env.APP_URL}login/error/1004`);
+                    //             }
+                    //         }
+                    //         else {
+                    //             //Check if user exist as an user
+                    //             return res.redirect(`${process.env.APP_URL}login/error/1002`);
+                    //         }
+                    //     }
+                    //     else if (checkCompanyExistResult[0].company_count === 0) {
+                    //         //Check if user exist in our db, 0 = not exist . then create new qb user
+                    //         console.log("creating qb account...");
+                    //         let user_id;
+                    //         let checkUserByEmail = await checkUserEmail(email);
+                    //         if(checkUserByEmail[0].user_count === 0) {
+                    //             const createUsersResult = await createUserAccount(first_name, last_name, email, null, null, null, null, null, token, "quickbooks");
+                    //             user_id= createUsersResult.insertId;
+                    //         }
+                    //         else {
+                    //             let getUserByEmailResult = await getUserByEmail(email);
+                    //             console.log("getUserByEmailResult",getUserByEmailResult);
+                    //             user_id = getUserByEmailResult[0].id;
+                    //             console.log("updateLoginToken");
+                    //             const updateLoginTokenResult = await updateLoginToken(getUserByEmailResult[0].id, token, null, null, null, null, 1);
+                    //         }
+                    //
+                    //         const checkUserCompanyResult = await checkUserCompanyByTenant(decodedIdToken.realmid);
+                    //         let company_id= null;
+                    //         if (checkUserCompanyResult[0].company_count === 0) {
+                    //             let NameValue = companyArray.NameValue;
+                    //             let IndustryType = NameValue.filter(el => el.Name._text === 'IndustryType');
+                    //             let CompanyType = NameValue.filter(el => el.Name._text === 'CompanyType');
+                    //             // const createCompanyResult = await createCompany(null ,jwtTokenDecode.realmid,companyArray.IntuitResponse.CompanyInfo.CompanyName._text,companyArray.IntuitResponse.CompanyInfo.MetaData.CreateTime._text, companyArray.IntuitResponse.CompanyInfo._attributes.domain, null,'USD',CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null,IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null,createUsersResult.insertId);
+                    //             const createCompanyResult = await createCompany(companyArray.CompanyName._text ,null, decodedIdToken.realmid, CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null, IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null, "quickbooks","USD", user_id, companyArray.MetaData.CreateTime._text);
+                    //             console.log("company created",companyArray.CompanyName._text)
+                    //             const createUserRoleResult = await createUserRole(user_id, createCompanyResult.insertId, null, 1, null);
+                    //             console.log("role created company id",createCompanyResult.insertId,"user id",user_id);
+                    //             company_id = createCompanyResult.insertId;
+                    //
+                    //             console.log("updating qb tokens")
+                    //             const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
+                    //
+                    //             let accounts = await getAccounts(qb_access_token, decodedIdToken.realmid);
+                    //
+                    //             let purchases = await getPurchases(qb_access_token, decodedIdToken.realmid, "all");
+                    //             let bills = await getBills(qb_access_token, decodedIdToken.realmid, "all");
+                    //             let attachables = await getAllAttachables(qb_access_token, decodedIdToken.realmid);
+                    //
+                    //             let categories = await getCategories(qb_access_token, decodedIdToken.realmid);
+                    //             let classes = await getClasses(qb_access_token, decodedIdToken.realmid);
+                    //
+                    //             let suppliers = await getSuppliers(qb_access_token, decodedIdToken.realmid, "all");
+                    //
+                    //
+                    //             const accountArray = JSON.parse(accounts).IntuitResponse.QueryResponse.Account;
+                    //
+                    //             const purchaseArray = JSON.parse(purchases).IntuitResponse.QueryResponse.Purchase;
+                    //             const billArray = JSON.parse(bills).IntuitResponse.QueryResponse.Bill;
+                    //             const attachableArray = JSON.parse(attachables).IntuitResponse.QueryResponse.Attachable;
+                    //
+                    //             const categoryArray = JSON.parse(categories).IntuitResponse.QueryResponse.Department;
+                    //             const classArray = JSON.parse(classes).IntuitResponse.QueryResponse.Class;
+                    //
+                    //             const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
+                    //
+                    //
+                    //             await syncCategories(user_id, company_id, categoryArray).then(async () => {
+                    //                 await syncClasses(user_id, company_id, classArray).then(async () => {
+                    //                     await syncAccounts(user_id, company_id, accountArray).then(async () => {
+                    //                         await syncSuppliers(user_id, company_id, supplierArray).then(async () => {
+                    //                             await syncPurchases(user_id, company_id, purchaseArray).then(async () => {
+                    //                                 await syncAttachables(user_id, company_id, attachableArray).then(() => {
+                    //                                     storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
+                    //                                 })
+                    //                             });
+                    //                         });
+                    //                     });
+                    //                 });
+                    //             });
+                    //
+                    //             // Disable all companies in xero and then enable current selected one.
+                    //             const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
+                    //             const disableAllCompanyResult = await disableAllCompany(user_id);
+                    //             const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
+                    //             console.log("sending email....");
+                    //             // const sendEmailResult = await sendEmail(email, first_name);
+                    //             // console.log("sendEmailResult",sendEmailResult);
+                    //             console.log("redirecting to ",`${process.env.APP_URL}auth/sign-up/quickbooks/` + encodeURIComponent(email) + `/` + token);
+                    //             return res.redirect(`${process.env.APP_URL}auth/sign-up/quickbooks/` + encodeURIComponent(email) + `/` + token);
+                    //         }
+                    //     }
+                    // }
+                    // else if(request_type === "login") {
+                    //     console.log("user is trying to login their account..");
+                    //     const checkCompanyExistResult = await checkCompanyExist(decodedIdToken.realmid);
+                    //     const getCompanyByTenantIdResult = await getCompanyByTenant(decodedIdToken.realmid);
+                    //     console.log("getCompanyByTenantIdResult",getCompanyByTenantIdResult)
+                    //
+                    //     if(checkCompanyExistResult[0].company_count === 1) {
+                    //         let getUserData = await getUserById(getCompanyByTenantIdResult[0].user_id);
+                    //
+                    //         console.log("user exist and status is 1 just need to refresh token and redirect user to login page");
+                    //         console.log("updating email");
+                    //         const updateXeroAccountEmailResult = await updateAccountEmail(getUserData[0].id, email);
+                    //         console.log("updating qb tokens")
+                    //         const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
+                    //
+                    //         const updateLoginTokenResult = await updateLoginToken(getUserData[0].id, token, null, null, null, null, 1);
+                    //         let user_id = getUserData[0].id;
+                    //
+                    //         // Disable all companies in xero and then enable current selected one.
+                    //         const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
+                    //         const disableAllCompanyResult = await disableAllCompany(user_id);
+                    //         const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
+                    //
+                    //         console.log("user already exist");
+                    //         console.log("redirecting to",`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token)
+                    //         return res.redirect(`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token);
+                    //     }
+                    //     else {
+                    //         return res.redirect(`${process.env.APP_URL}login/error/404`);
+                    //     }
+                    // }
                 });
         }
         catch (e) {
@@ -1574,7 +1705,7 @@ module.exports = {
             });
         }
     },
-    viewAttachment: async(req, res) => {
+    viewAttachment: async (req, res) => {
         try {
             const user_id = req.params.user_id;
             const company_id = req.params.company_id;
@@ -1615,6 +1746,36 @@ module.exports = {
                 message: "Loading attachment failed",
                 error: err
             })
+        }
+    },
+    syncEmail: async (req, res) => {
+        try {
+            const company_id = req.params.company_id;
+            const user_id = req.params.user_id;
+
+            const token = await refreshToken(company_id);
+
+            const company = await getCompanyByID(company_id);
+            let user = await getUser(company[0].access_token);
+            let userArray = JSON.parse(user);
+            let email = userArray.email;
+            const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+            console.log("email updated",updateXeroAccountEmailResult);
+            console.log("user", userArray)
+
+            const getUserByIDRes = await getUserById(user_id);
+            getUserByIDRes[0].password = undefined;
+            return res.json({
+                status: 200,
+                message: "Email refreshed successfully",
+                user: getUserByIDRes[0]
+            })
+        }
+        catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
         }
     }
 };
