@@ -1753,23 +1753,49 @@ module.exports = {
             const company_id = req.params.company_id;
             const user_id = req.params.user_id;
 
+
+
             const token = await refreshToken(company_id);
 
             const company = await getCompanyByID(company_id);
             let user = await getUser(company[0].access_token);
             let userArray = JSON.parse(user);
             let email = userArray.email;
-            const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
-            console.log("email updated",updateXeroAccountEmailResult);
-            console.log("user", userArray)
 
-            const getUserByIDRes = await getUserById(user_id);
-            getUserByIDRes[0].password = undefined;
-            return res.json({
-                status: 200,
-                message: "Email refreshed successfully",
-                user: getUserByIDRes[0]
-            })
+            const checkUserEmailResponse = await checkUserEmail(email);
+
+            if(getUserByIDRes[0].email === email) {
+                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+                console.log("email updated",updateXeroAccountEmailResult);
+                console.log("user", userArray)
+
+                const getUserByIDRes = await getUserById(user_id);
+                getUserByIDRes[0].password = undefined;
+                return res.json({
+                    status: 200,
+                    message: "Email refreshed successfully",
+                    user: getUserByIDRes[0]
+                })
+            }
+            else if(checkUserEmailResponse[0].user_count === 0) {
+                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+                console.log("email updated",updateXeroAccountEmailResult);
+                console.log("user", userArray)
+
+                const getUserByIDRes = await getUserById(user_id);
+                getUserByIDRes[0].password = undefined;
+                return res.json({
+                    status: 200,
+                    message: "Email refreshed successfully",
+                    user: getUserByIDRes[0]
+                })
+            }
+            else {
+                return res.json({
+                    status: 500,
+                    message: "Refreshing email already registered",
+                });
+            }
         }
         catch (e) {
             return res.json({

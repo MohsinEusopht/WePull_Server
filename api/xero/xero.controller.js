@@ -1356,21 +1356,44 @@ module.exports = {
             const jwtTokenDecode = jwt.decode(xero_id_token);
             let email = jwtTokenDecode.email;
             console.log("email", email);
-            const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
-            console.log("updateXeroAccountEmailResult");
-            getUser[0].password = undefined;
-            return res.json({
-                status: 200,
-                message: "Email refreshed successfully",
-                user: getUser[0]
-            })
+
+            const checkUserEmailResponse = await checkUserEmail(email);
+
+            console.log("user_id",user_id);
+            console.log("checkUserEmailResponse",checkUserEmailResponse);
+            if(getUser[0].email === email) {
+                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+                console.log("updateXeroAccountEmailResult");
+                getUser[0].password = undefined;
+                return res.json({
+                    status: 200,
+                    message: "Email refreshed successfully",
+                    user: getUser[0]
+                })
+            }
+            else if (checkUserEmailResponse[0].user_count === 0) {
+                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+                console.log("updateXeroAccountEmailResult");
+                getUser[0].password = undefined;
+                return res.json({
+                    status: 200,
+                    message: "Email refreshed successfully",
+                    user: getUser[0]
+                })
+            }
+            else {
+                return res.json({
+                    status: 500,
+                    message: "Refreshing email already registered",
+                });
+            }
         }
         catch (err) {
             // const error = JSON.stringify(err.response, null, 2)
             console.log(err);
             return res.json({
                 status: 500,
-                message: "Loading attachment failed"
+                message: err
             })
         }
     }
