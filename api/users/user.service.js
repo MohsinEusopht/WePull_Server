@@ -552,6 +552,7 @@ module.exports = {
         })
     },
     updateSupplier: (name, supplier_id, phone, mobile, email, web, address, city, region, country, postal_code, status, company_id, create_date) => {
+        console.log(`UPDATE suppliers SET name = ?, phone = ?, mobile = ?, email = ?, web = ?, address = ?, city = ?, region = ?, country = ?, postal_code = ?, status = ${status}, create_date = ? WHERE supplier_id = '${supplier_id}' AND company_id = ${company_id}`)
         return new Promise((resolve, reject) => {
             pool.query(
                 `UPDATE suppliers SET name = ?, phone = ?, mobile = ?, email = ?, web = ?, address = ?, city = ?, region = ?, country = ?, postal_code = ?, status = ?, create_date = ? WHERE supplier_id = ? AND company_id = ?`, [name, phone, mobile, email, web, address, city, region, country, postal_code, status, create_date, supplier_id, company_id],

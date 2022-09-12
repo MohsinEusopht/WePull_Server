@@ -43,8 +43,8 @@ app.get('/config', (req, res) => {
 let corsOptions = {
     origin: process.env.APP_URL
 };
-app.use(cors(corsOptions));
-// app.use(cors());
+// app.use(cors(corsOptions));
+app.use(cors());
 app.use(express.json());
 // app.use(cors());
 console.log("Base Url: ",__dirname)

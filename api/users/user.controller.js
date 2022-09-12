@@ -361,9 +361,9 @@ module.exports = {
     getCategories: async (req, res) => {
         try {
             const company_id = req.params.company_id;
-            console.log("company_id", company_id);
+            // console.log("company_id", company_id);
             const categories = await getCategories(company_id);
-            console.log("categories", categories);
+            // console.log("categories", categories);
 
             return res.json({
                 status: 200,
@@ -380,9 +380,9 @@ module.exports = {
     getCategoriesForDashboard: async (req, res) => {
         try {
             const company_id = req.params.company_id;
-            console.log("company_id", company_id);
+            // console.log("company_id", company_id);
             const categories = await getCategoriesForDashboard(company_id);
-            console.log("categories", categories);
+            // console.log("categories", categories);
 
             return res.json({
                 status: 200,
@@ -399,9 +399,9 @@ module.exports = {
     getCategoriesForUserCreation: async (req, res) => {
         try {
             const company_id = req.params.company_id;
-            console.log("company_id", company_id);
+            // console.log("company_id", company_id);
             const categories = await getCategoriesForUserCreation(company_id);
-            console.log("categories", categories);
+            // console.log("categories", categories);
 
             return res.json({
                 status: 200,
@@ -422,7 +422,7 @@ module.exports = {
             console.log("company_id", company_id);
             console.log("user_id", user_id);
             const categories = await getCategoriesForUserDashboard(company_id, user_id);
-            console.log("categories", categories);
+            // console.log("categories", categories);
 
             return res.json({
                 status: 200,
@@ -443,7 +443,7 @@ module.exports = {
             console.log("company_id", company_id);
             console.log("user_id", user_id);
             const categories = await getUserAssignedCategoriesByUserID(company_id, user_id);
-            console.log("categories", categories);
+            // console.log("categories", categories);
 
             return res.json({
                 status: 200,
@@ -567,7 +567,7 @@ module.exports = {
             console.log("category_id", category_id);
 
             const categories = await getExpensesByCategoryID(company_id, category_id);
-            console.log("categories", categories);
+            // console.log("categories", categories);
 
             return res.json({
                 status: 200,

@@ -242,12 +242,11 @@ async function syncCategories(user_id, company_id, tenant) {
 
         console.log("syncCategories token set:", TS);
 
-        const setAllCategoryStatusToZeroResponse = await setAllCategoryStatusToZero(company_id);
-        console.log("setAllCategoryStatusToZeroResponse",setAllCategoryStatusToZeroResponse)
+        // console.log("setAllCategoryStatusToZeroResponse",setAllCategoryStatusToZeroResponse)
         await xero.setTokenSet(TS);
 
         const xeroTenantId = tenant;
-        console.log("syncCategories xeroTenantId",xeroTenantId);
+        // console.log("syncCategories xeroTenantId",xeroTenantId);
         // const where = 'Status=="ACTIVE"';
         const order = 'Name ASC';
         const includeArchived = true;
@@ -255,7 +254,7 @@ async function syncCategories(user_id, company_id, tenant) {
         let res = response.body.trackingCategories;
         if (res.length > 0) {
             for (let i = 0; i < res.length; i++) {
-                console.log("syncCategories categories", i, ":::", response.body.trackingCategories[i])
+                // console.log("syncCategories categories", i, ":::", response.body.trackingCategories[i])
                 for (const Category of response.body.trackingCategories[i].options) {
                     const checkCategoryResult = await checkCategory(Category.trackingOptionID, company_id);
                     let category_type = "";
@@ -290,7 +289,7 @@ async function syncCategories(user_id, company_id, tenant) {
                         console.log("founded category parent", res[i].name);
                         console.log("")
                         const updateCategoryResult = await updateCategory(Category.name, Category.trackingOptionID, null, Category.status.toString() === "ACTIVE" ? 1 : 0,res[i].trackingCategoryID, res[i].name, category_type, company_id);
-                        console.log("updateCategoryResult",updateCategoryResult);
+                        // console.log("updateCategoryResult",updateCategoryResult);
                     }
                 }
             }
@@ -372,9 +371,6 @@ async function syncSuppliers(user_id, company_id, tenant) {
             scope: scope
         });
 
-        const setAllSupplierStatusToZeroResponse = await setAllSupplierStatusToZero(company_id);
-        console.log("setAllSupplierStatusToZeroResponse", setAllSupplierStatusToZeroResponse);
-
         // await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
         await xero.setTokenSet(TS);
 
@@ -431,7 +427,21 @@ async function syncSuppliers(user_id, company_id, tenant) {
                 const addSupplierResult = await addSupplier(name?name:null, supplier_id, contact?contact:null, mobile?mobile:null, email?email:null, website?website:null, address?address:null, city?city:null, region?region:null, country?country:null, postalCode?postalCode:null, status, 'xero', company_id, user_id, create_date);
             }
             else {
-                const updateSupplierResult = await updateSupplier(name?name:null, supplier_id, contact?contact:null, mobile?mobile:null, email?email:null, website?website:null, address?address:null, city?city:null, region?region:null, country?country:null, postalCode?postalCode:null, status, company_id, create_date);
+               await updateSupplier(
+                   name?name:null,
+                   supplier_id,
+                   contact?contact:null,
+                   mobile?mobile:null,
+                   email?email:null,
+                   website?website:null,
+                   address?address:null,
+                   city?city:null,
+                   region?region:null,
+                   country?country:null,
+                   postalCode?postalCode:null,
+                   status,
+                   company_id,
+                   create_date);
             }
         }
         await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
@@ -503,7 +513,7 @@ async function syncExpenses(user_id, company_id, tenant, duration) {
                                 //If line item has more than one category
                                 for (let x = 0; x < Expense.lineItems[i].tracking.length; x++) {
                                     const getCategory = await getCategoryByCategoryIDAndParentName(Expense.lineItems[i].tracking[x].option, Expense.lineItems[i].tracking[x].trackingCategoryID, company_id);
-                                    console.log("getCategoryByCategoryIDAndParentName",getCategory);
+                                    // console.log("getCategoryByCategoryIDAndParentName",getCategory);
                                     if(getCategory.length > 0) {
                                         if(getCategory[0].category_type === "Departments") {
                                             category1 = getCategory[0].id;
@@ -577,7 +587,7 @@ async function syncExpenses(user_id, company_id, tenant, duration) {
                                 );
                             }
                             // const addExpenseResult = await addExpense(Expense.invoiceID, 1, Expense.date, Expense.updatedDateUTC, null, vn[0].vendor_id !== undefined ? vn[0].vendor_id : null, vn[0].name !== undefined ? vn[0].name : null, Expense.currencyCode, Expense.type, Expense.lineItems[0].accountCode, null, Expense.lineItems[0].description, category !== null ? (category !== undefined ? category[0].depart_id:null) : null, location !== null ? location[0].depart_id : null, Expense.lineItems[0].lineAmount , Expense.lineItems[0].taxAmount, is_paid, payment_ref_number, paid_amount, payment_date, company_id, user_id)
-                            console.log("xero expense added", Expense.invoiceID);
+                            // console.log("xero expense added", Expense.invoiceID);
                         }
                     }
 
@@ -699,10 +709,10 @@ module.exports = {
 
 
             let array = JSON.parse(JSON.stringify(tokenSet));
-            xero_access_token = array.access_token;
-            xero_refresh_token = array.refresh_token;
-            xero_id_token = array.id_token;
-            xero_expire_at = array.expires_at;
+            let xero_access_token = array.access_token;
+            let xero_refresh_token = array.refresh_token;
+            let xero_id_token = array.id_token;
+            let xero_expire_at = array.expires_at;
 
             TS = new TokenSet({
                 id_token: xero_id_token,
@@ -814,10 +824,10 @@ module.exports = {
             console.log("tokenSet", tokenSet)
 
             let array = JSON.parse(JSON.stringify(tokenSet));
-            xero_access_token = array.access_token;
-            xero_refresh_token = array.refresh_token;
-            xero_id_token = array.id_token;
-            xero_expire_at = array.expires_at;
+            let xero_access_token = array.access_token;
+            let xero_refresh_token = array.refresh_token;
+            let xero_id_token = array.id_token;
+            let xero_expire_at = array.expires_at;
 
             TS = new TokenSet({
                 id_token: xero_id_token,
@@ -870,6 +880,7 @@ module.exports = {
                                 //Loop all companies
                                 const checkCompanyExistResult = await checkCompanyExist(tenantArray[i].tenantId);
                                 if(checkCompanyExistResult[0].company_count === 0) {
+                                    isCompanyFound = false;
                                     //company do not exist so we get user by its email
                                     const getUserData = await getUserByEmail(email);
                                     const checkUserByEmailResult = await checkUserEmail(email);
@@ -891,6 +902,7 @@ module.exports = {
                                     company_id = createCompanyResult.insertId;
 
                                     const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+                                    const updateLoginTokenResult = await updateLoginToken(user_id, token, xero_id_token, xero_access_token, xero_refresh_token, xero_expire_at, 1);
                                     //Here we put the fetching function to fetch all data from user's xero account.
                                     await syncCategories(user_id, company_id, tenantArray[i].tenantId).then(async () => {
                                         await syncSuppliers(user_id, company_id, tenantArray[i].tenantId).then(async () => {
@@ -902,11 +914,14 @@ module.exports = {
                                         })
                                     });
                                 }
-                                else {
+                                else if(checkCompanyExistResult[0].company_count === 1) {
                                     //if company exist then we just refresh its token
                                     isCompanyFound = true;
                                     const getCompanyByTenantIdResult = await getCompanyByTenant(tenantArray[i].tenantId);
+                                    console.log("getCompanyByTenantIdResult...",getCompanyByTenantIdResult[0]);
                                     let getUserData = await getUserById(getCompanyByTenantIdResult[0].user_id);
+
+                                    console.log("getUserData...",getUserData[0]);
                                     const updateXeroAccountEmailResult = await updateAccountEmail(getUserData[0].id, email);
                                     const updateLoginTokenResult = await updateLoginToken(getUserData[0].id, token, xero_id_token, xero_access_token, xero_refresh_token, xero_expire_at, 1);
                                     const currencyResponse = await xero.accountingApi.getCurrencies(tenantArray[i].tenantId, null, null);
@@ -914,7 +929,7 @@ module.exports = {
                                 }
                             }
                             //update login token to login or connect and then activate first tenant of user
-                            const updateLoginTokenResult = await updateLoginToken(user_id, token, xero_id_token, xero_access_token, xero_refresh_token, xero_expire_at, 1);
+
                             const getCompanyByTenantResult = await getCompanyByTenant(tenantArray[0].tenantId);
                             const disableAllCompanyResult = await disableAllCompany(user_id);
                             const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
@@ -1280,6 +1295,8 @@ module.exports = {
             console.log("access_token", access_token);
             console.log("tenant_id", tenant_id);
 
+            const setAllCategoryStatusToZeroResponse = await setAllCategoryStatusToZero(company_id);
+            const setAllSupplierStatusToZeroResponse = await setAllSupplierStatusToZero(company_id);
             await syncCategories(user_id, company_id, tenant_id).then(async () => {
                 await syncSuppliers(user_id, company_id, tenant_id).then(async () => {
                     await syncAccounts(user_id, company_id, tenant_id).then(async () => {
@@ -1331,6 +1348,7 @@ module.exports = {
             const response = await xero.accountingApi.getInvoiceAttachmentById(company[0].tenant_id, expense_id, attachment_id, contentType);
             console.log("statusCode",response.response.statusCode);
             console.log("image", response.body);
+            console.log(response.body[0]);
             return res.json({
                 status: 200,
                 data: response.body
