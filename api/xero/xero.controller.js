@@ -857,6 +857,7 @@ module.exports = {
 
 
             console.log("total tenants",tenantArray.length);
+            let isEmailSend = false;
 
 
             if(tenantArray.length > 0) {
@@ -944,9 +945,34 @@ module.exports = {
                                 return res.redirect(`${process.env.APP_URL}auth/login/xero/` + encodeURIComponent(email) + `/` + token);
                             }
                             else {
-                                // redirect as sign up if user is a fresh user
-                                console.log("redirecting to ",`${process.env.APP_URL}auth/sign-up/xero/` + encodeURIComponent(email) + `/` + token);
-                                return res.redirect(`${process.env.APP_URL}auth/sign-up/xero/` + encodeURIComponent(email) + `/` + token);
+                                console.log("sending email....");
+                                let transporter = await nodeMailer.createTransport({
+                                    host: "smtp.gmail.com",
+                                    port: 465,
+                                    secure: true, // use SSL
+                                    auth: {
+                                        user: "no-reply@wepull.io",
+                                        pass: "hpnxtbitpndrxbfv"
+                                    },
+                                    debug: true, // show debug output
+                                    logger: true
+                                });
+                                let href = process.env.APP_URL + "login";
+                                let html = await template("admin_sign_up", first_name, href);
+                                let mailOptions = {
+                                    from: 'mohsinjaved414@yahoo.com',
+                                    to: email,
+                                    subject: subject.admin_sign_up,
+                                    html: html
+                                };
+                                console.log("isEmailSend",isEmailSend.toString());
+                                if(!isEmailSend) {
+                                    await transporter.sendMail(mailOptions).then(() => {
+                                        isEmailSend = true;
+                                        console.log("redirecting to ",`${process.env.APP_URL}auth/sign-up/xero/` + encodeURIComponent(email) + `/` + token);
+                                        return res.redirect(`${process.env.APP_URL}auth/sign-up/xero/` + encodeURIComponent(email) + `/` + token);
+                                    });
+                                }
                             }
                         }
                     }

@@ -1134,7 +1134,7 @@ module.exports = {
                     console.log("userArray",userArray);
                     console.log("companyArray",companyArray);
                     console.log("user email", email)
-
+                    let isEmailSend = false;
 
 
 
@@ -1216,10 +1216,10 @@ module.exports = {
 
                                     let IndustryType = NameValue.filter(el => el.Name._text === 'IndustryType');
                                     let CompanyType = NameValue.filter(el => el.Name._text === 'CompanyType');
-                                    const createCompanyResult = await createCompany(companyArray.CompanyName._text ,null, decodedIdToken.realmid, CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null, IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null, "quickbooks","USD", getUserData[0].id, companyArray.MetaData.CreateTime._text);
+                                    const createCompanyResult = await createCompany(companyArray.CompanyName._text ,null, decodedIdToken.realmid, CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null, IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null, "quickbooks","USD", user_id, companyArray.MetaData.CreateTime._text);
                                     console.log("company created",companyArray.CompanyName._text)
                                     company_id = createCompanyResult.insertId;
-                                    const createUserRoleResult = await createUserRole(getUserData[0].id, createCompanyResult.insertId, null, 1, null);
+                                    const createUserRoleResult = await createUserRole(user_id, createCompanyResult.insertId, null, 1, null);
                                     console.log("role created company id",createCompanyResult.insertId,"user id",user_id);
                                     const updateQbAccountEmailResult = await updateAccountEmail(user_id, email);
                                     const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
@@ -1248,18 +1248,18 @@ module.exports = {
                                     const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
 
 
-                                    await syncCategories(getUserData[0].id, company_id, categoryArray).then(async () => {
+                                    await syncCategories(user_id, company_id, categoryArray).then(async () => {
                                         await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
-                                        await syncClasses(getUserData[0].id, company_id, classArray).then(async () => {
+                                        await syncClasses(user_id, company_id, classArray).then(async () => {
                                             await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
-                                            await syncAccounts(getUserData[0].id, company_id, accountArray).then(async () => {
+                                            await syncAccounts(user_id, company_id, accountArray).then(async () => {
                                                 await storeActivity("Accounts Synced", "-", "Account", company_id, user_id);
-                                                await syncSuppliers(getUserData[0].id, company_id, supplierArray).then(async () => {
+                                                await syncSuppliers(user_id, company_id, supplierArray).then(async () => {
                                                     await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
-                                                    await syncPurchases(getUserData[0].id, company_id, purchaseArray).then(async () => {
+                                                    await syncPurchases(user_id, company_id, purchaseArray).then(async () => {
                                                         await storeActivity("Expenses Synced","-", "Expense", company_id, user_id);
-                                                        await syncAttachables(getUserData[0].id, company_id, attachableArray).then(async () => {
-                                                            await storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, getUserData[0].id);
+                                                        await syncAttachables(user_id, company_id, attachableArray).then(async () => {
+                                                            await storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
                                                         })
                                                     });
                                                 });
@@ -1272,7 +1272,35 @@ module.exports = {
                                     const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
 
                                     if(request_type === 'sign-up') {
-                                        return res.redirect(`${process.env.APP_URL}auth/sign-up/quickbooks/` + encodeURIComponent(email) + `/` + token);
+                                        console.log("sending email....");
+                                        let transporter = await nodeMailer.createTransport({
+                                            host: "smtp.gmail.com",
+                                            port: 465,
+                                            secure: true, // use SSL
+                                            auth: {
+                                                user: "no-reply@wepull.io",
+                                                pass: "hpnxtbitpndrxbfv"
+                                            },
+                                            debug: true, // show debug output
+                                            logger: true
+                                        });
+                                        let href = process.env.APP_URL + "login";
+                                        let html = await template("admin_sign_up", first_name, href);
+                                        let mailOptions = {
+                                            from: 'mohsinjaved414@yahoo.com',
+                                            to: email,
+                                            subject: subject.admin_sign_up,
+                                            html: html
+                                        };
+                                        if(!isEmailSend) {
+                                            await transporter.sendMail(mailOptions).then(() => {
+                                                isEmailSend = true;
+                                                return res.redirect(`${process.env.APP_URL}auth/sign-up/quickbooks/` + encodeURIComponent(email) + `/` + token);
+                                            }).catch((err) => {
+                                                console.log("email error",err);
+                                                return res.redirect(`${process.env.APP_URL}auth/sign-up/quickbooks/` + encodeURIComponent(email) + `/` + token);
+                                            });
+                                        }
                                     }
                                     else if(request_type === "connect") {
                                         return res.redirect(`${process.env.APP_URL}companies`);
