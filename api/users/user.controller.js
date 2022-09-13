@@ -58,17 +58,18 @@ const { sign } = require("jsonwebtoken");
 async function sendEmail(email, first_name, href) {
     try {
         console.log("sending email to", email);
-        let transporter = nodeMailer.createTransport({
-            host: "smtp.mail.yahoo.com",
+        let transporter = await nodeMailer.createTransport({
+            host: "smtp.gmail.com",
             port: 465,
+            secure: true, // use SSL
             auth: {
-                user: "mohsinjaved414@yahoo.com",
-                pass: "exvnhtussrqkmqcr"
+                user: "no-reply@wepull.io",
+                pass: "hpnxtbitpndrxbfv"
             },
             debug: true, // show debug output
             logger: true
         });
-        let html = template("forgot_password", first_name, href);
+        let html = await template("forgot_password", first_name, href);
         let mailOptions = {
             from: 'mohsinjaved414@yahoo.com',
             to: email,
