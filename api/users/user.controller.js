@@ -998,17 +998,40 @@ module.exports = {
 
             console.log("selected plan is ",plan);
 
-            const customer = await stripe.customers.create({
-                payment_method: payment_method,
-                email: email,
-                invoice_settings: {
-                    default_payment_method: payment_method,
-                },
+            //Check if customer created or not
+            let isCustomerCreated = false;
+            let customer;
+            const customers = await stripe.customers.list();
+            await customers.data.map((el) => {
+                if(el.email === email) {
+                    isCustomerCreated = true;
+                    customer = el;
+                }
+                else {
+                    isCustomerCreated = false;
+                }
             });
 
-            console.log("customer created", customer.id);
+            console.log("isCustomerCreated",isCustomerCreated);
 
-            const subscription = await stripe.subscriptions.create({
+            if(!isCustomerCreated) {
+                customer = await stripe.customers.create({
+                    payment_method: payment_method,
+                    email: email,
+                    invoice_settings: {
+                        default_payment_method: payment_method,
+                    },
+                });
+            }
+            console.log("customer",customer);
+            console.log("customer id", customer.id);
+
+
+            let isSubscriptionCreated = false;
+            let subscription;
+
+
+            subscription = await stripe.subscriptions.create({
                 customer: customer.id,
                 items: [{ price: price_id }],
                 billing_cycle_anchor: nextMonth,

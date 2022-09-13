@@ -103,8 +103,20 @@ router.post('/subscribe', validateAdminPermission, subscribe)
 
 router.get('/all_stripe_customers', async (req, res) => {
     const customers = await stripe.customers.list();
+
+    customers.data.map(async (e) => {
+        const subscriptions = await stripe.subscriptions.list();
+        await subscriptions.data.map(async (subscription) => {
+            if (e.id === subscription.customer) {
+                if(subscription.items.data[0].price.id === "price_1LXMCYA94Y1iT6R5fFNpuQgw") {
+                    console.log("subscriptions of customer ",e.id,":::",subscription);
+                }
+            }
+        });
+
+    })
     return res.json(customers.data);
-})
+});
 
 router.post("/createUser",validateAdminPermission, createUser);
 router.get("/user/creation/success/:company_id/:user_id/:email/:selected_plan", validateAdminPermission, userCreationSuccess);

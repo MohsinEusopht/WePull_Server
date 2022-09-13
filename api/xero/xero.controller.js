@@ -294,7 +294,7 @@ async function syncCategories(user_id, company_id, tenant) {
                 }
             }
         }
-        await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
+
         return {
             status: 200,
             message: "Categories synced successfully!"
@@ -344,7 +344,7 @@ async function syncAccounts(user_id, company_id, tenant) {
                 }
             }
         }
-        await storeActivity("Accounts Synced", "-", "Account", company_id, user_id);
+
         return {
             status: 200,
             message: "Accounts synced successfully!"
@@ -444,7 +444,8 @@ async function syncSuppliers(user_id, company_id, tenant) {
                    create_date);
             }
         }
-        await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
+        console.log("Suppliers Synced");
+
         return {
             status: 200,
             message: "Suppliers synced successfully!"
@@ -628,7 +629,6 @@ async function syncExpenses(user_id, company_id, tenant, duration) {
                 }
         }
 
-        await storeActivity("Expenses Synced", "-", "Expense", company_id, user_id);
         return {
             status: 200,
             message: "Expenses synced successfully!"
@@ -905,10 +905,14 @@ module.exports = {
                                     const updateLoginTokenResult = await updateLoginToken(user_id, token, xero_id_token, xero_access_token, xero_refresh_token, xero_expire_at, 1);
                                     //Here we put the fetching function to fetch all data from user's xero account.
                                     await syncCategories(user_id, company_id, tenantArray[i].tenantId).then(async () => {
+                                        await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
                                         await syncSuppliers(user_id, company_id, tenantArray[i].tenantId).then(async () => {
+                                            await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
                                             await syncAccounts(user_id, company_id, tenantArray[i].tenantId).then(async () => {
-                                                await syncExpenses(user_id, company_id, tenantArray[i].tenantId, "all").then(() => {
-                                                    storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
+                                                await storeActivity("Accounts Synced", "-", "Account", company_id, user_id);
+                                                await syncExpenses(user_id, company_id, tenantArray[i].tenantId, "all").then(async () => {
+                                                    await storeActivity("Expenses Synced", "-", "Expense", company_id, user_id);
+                                                    await storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
                                                 });
                                             })
                                         })
@@ -972,10 +976,14 @@ module.exports = {
 
                             //Here we put the fetching function to fetch all data from user's xero account.
                             await syncCategories(user_id, company_id, tenantArray[i].tenantId).then(async () => {
+                                await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
                                 await syncSuppliers(user_id, company_id, tenantArray[i].tenantId).then(async () => {
+                                    await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
                                     await syncAccounts(user_id, company_id, tenantArray[i].tenantId).then(async () => {
-                                        await syncExpenses(user_id, company_id, tenantArray[i].tenantId, "all").then(() => {
-                                            storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
+                                        await storeActivity("Accounts Synced", "-", "Account", company_id, user_id);
+                                        await syncExpenses(user_id, company_id, tenantArray[i].tenantId, "all").then(async () => {
+                                            await storeActivity("Expenses Synced", "-", "Expense", company_id, user_id);
+                                            await storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
                                         });
                                     })
                                 })
@@ -1298,10 +1306,14 @@ module.exports = {
             const setAllCategoryStatusToZeroResponse = await setAllCategoryStatusToZero(company_id);
             const setAllSupplierStatusToZeroResponse = await setAllSupplierStatusToZero(company_id);
             await syncCategories(user_id, company_id, tenant_id).then(async () => {
+                await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
                 await syncSuppliers(user_id, company_id, tenant_id).then(async () => {
+                    await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
                     await syncAccounts(user_id, company_id, tenant_id).then(async () => {
-                        await syncExpenses(user_id, company_id, tenant_id, "week").then(() => {
-                            storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
+                        await storeActivity("Accounts Synced", "-", "Account", company_id, user_id);
+                        await syncExpenses(user_id, company_id, tenant_id, "week").then(async () => {
+                            await storeActivity("Expenses Synced", "-", "Expense", company_id, user_id);
+                            await storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
                         });
                     })
                 })

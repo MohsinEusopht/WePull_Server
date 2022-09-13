@@ -516,7 +516,6 @@ async function syncAccounts(user_id, company_id, accounts) {
             }
         }
 
-        await storeActivity("Accounts Synced", "-", "Account", company_id, user_id);
         return {
             status: 200,
             message: "Accounts synced successfully!"
@@ -594,7 +593,6 @@ async function syncCategories(user_id, company_id, categories) {
             }
         }
 
-        await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
         return {
             status: 200,
             message: "Categories synced successfully!"
@@ -672,7 +670,6 @@ async function syncClasses(user_id, company_id, classes) {
             }
         }
 
-        await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
         return {
             status: 200,
             message: "Categories synced successfully!"
@@ -704,7 +701,6 @@ async function syncSuppliers(user_id, company_id, suppliers) {
             }
         }
 
-        await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
         return {
             status: 200,
             message: "Suppliers synced successfully!"
@@ -889,7 +885,6 @@ async function syncPurchases(user_id, company_id, purchases) {
                 }
             }
         }
-        await storeActivity("Expenses Synced","-", "Expense", company_id, user_id);
         return {
             status: 200,
             message: "Categories synced successfully"
@@ -1254,12 +1249,17 @@ module.exports = {
 
 
                                     await syncCategories(getUserData[0].id, company_id, categoryArray).then(async () => {
+                                        await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
                                         await syncClasses(getUserData[0].id, company_id, classArray).then(async () => {
+                                            await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
                                             await syncAccounts(getUserData[0].id, company_id, accountArray).then(async () => {
+                                                await storeActivity("Accounts Synced", "-", "Account", company_id, user_id);
                                                 await syncSuppliers(getUserData[0].id, company_id, supplierArray).then(async () => {
+                                                    await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
                                                     await syncPurchases(getUserData[0].id, company_id, purchaseArray).then(async () => {
-                                                        await syncAttachables(getUserData[0].id, company_id, attachableArray).then(() => {
-                                                            storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, getUserData[0].id);
+                                                        await storeActivity("Expenses Synced","-", "Expense", company_id, user_id);
+                                                        await syncAttachables(getUserData[0].id, company_id, attachableArray).then(async () => {
+                                                            await storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, getUserData[0].id);
                                                         })
                                                     });
                                                 });
@@ -1680,12 +1680,17 @@ module.exports = {
             const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
 
             await syncCategories(user_id, company_id, categoryArray).then(async () => {
+                await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
                 await syncClasses(user_id, company_id, classArray).then(async () => {
+                    await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
                     await syncAccounts(user_id, company_id, accountArray).then(async () => {
+                        await storeActivity("Accounts Synced", "-", "Account", company_id, user_id);
                         await syncSuppliers(user_id, company_id, supplierArray).then(async () => {
+                            await storeActivity("Suppliers Synced", "-", "Supplier", company_id, user_id);
                             await syncPurchases(user_id, company_id, purchaseArray).then(async () => {
-                                await syncAttachables(user_id, company_id, attachableArray).then(() => {
-                                    storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
+                                await storeActivity("Expenses Synced","-", "Expense", company_id, user_id);
+                                await syncAttachables(user_id, company_id, attachableArray).then(async () => {
+                                    await storeActivity("All Data Synced", "Data has been synced successfully", "All", company_id, user_id);
                                 })
                             });
                         });
