@@ -1642,7 +1642,7 @@ module.exports = {
             });
             let message;
             if(uc_length === 0) {
-                message = "You have disconnect all of your companies from WePull. Please sign up again."
+                message = "You have disconnected all companies from WePull, Please sign up again to activate your account."
             }
             else {
                 message =  company[0].company_name + " has been disconnected from WePull."
