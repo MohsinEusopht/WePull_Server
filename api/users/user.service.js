@@ -985,10 +985,24 @@ module.exports = {
             );
         })
     },
-    storeSubscription: (user_id, company_id, customer_id, subscription_id, amount, package_duration) => {
+    storeSubscription: (company_id, customer_id, subscription_id, amount, package_duration, quantity) => {
         return new Promise((resolve, reject) => {
             pool.query(
-                `INSERT INTO subscriptions(user_id, company_id, customer_id, subscription_id, amount, package_duration) VALUES (? ,? ,? ,? ,? ,?)`, [user_id, company_id, customer_id, subscription_id, amount, package_duration],
+                `INSERT INTO subscriptions(company_id, customer_id, subscription_id, amount, package_duration, quantity) VALUES (? ,? ,? ,? ,?, ?)`, [company_id, customer_id, subscription_id, amount, package_duration, quantity],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    updateSubscription: (company_id, customer_id, subscription_id, quantity) => {
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `UPDATE subscriptions SET quantity = ? WHERE company_id = ? AND customer_id = ? AND subscription_id = ?`, [quantity, company_id, customer_id, subscription_id],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
@@ -1094,11 +1108,11 @@ module.exports = {
             );
         })
     },
-    getSubscription: (user_id) => {
+    getSubscription: (company_id, subscription_plan) => {
         return new Promise((resolve, reject) => {
             pool.query(
                 `SELECT *
-                FROM subscriptions where user_id = ?`, [user_id],
+                FROM subscriptions where company_id = ? AND package_duration = ?`, [company_id, subscription_plan],
                 (error, results, fields) => {
                     if (error) {
                         return reject(error);
@@ -1135,7 +1149,7 @@ module.exports = {
         })
     },
     deleteAllUserRelation: (user_id, company_id) => {
-        return new Promise((resolov, reject) => {
+        return new Promise((resolve, reject) => {
             pool.query(
                 `DELETE FROM user_relations WHERE user_id = ? AND company_id = ?`, [user_id, company_id],
                 (error, results, fields) => {
@@ -1143,13 +1157,13 @@ module.exports = {
                         // console.log(error);
                         return reject(error);
                     }
-                    return resolov(results);
+                    return resolve(results);
                 }
             );
         })
     },
     getCompanyUsers: (company_id) => {
-        return new Promise((resolov, reject) => {
+        return new Promise((resolve, reject) => {
             pool.query(
                 `SELECT * FROM users WHERE company_id = ? AND role_id = 2`, [company_id],
                 (error, results, fields) => {
@@ -1157,13 +1171,13 @@ module.exports = {
                         // console.log(error);
                         return reject(error);
                     }
-                    return resolov(results);
+                    return resolve(results);
                 }
             );
         })
     },
     insertForgotPasswordToken: (email, token) => {
-        return new Promise((resolov, reject) => {
+        return new Promise((resolve, reject) => {
             pool.query(
                 `INSERT INTO reset_password(email, token) VALUES (?, ?)`, [email, token],
                 (error, results, fields) => {
@@ -1171,13 +1185,13 @@ module.exports = {
                         return reject(error);
                     }
                     console.log(results)
-                    return resolov(results);
+                    return resolve(results);
                 }
             );
         })
     },
     updateForgotPasswordToken: (email, token) => {
-        return new Promise((resolov, reject) => {
+        return new Promise((resolve, reject) => {
             pool.query(
                 `UPDATE reset_password SET token = ? WHERE email = ?`, [token, email],
                 (error, results, fields) => {
@@ -1185,13 +1199,13 @@ module.exports = {
                         return reject(error);
                     }
                     console.log(results)
-                    return resolov(results);
+                    return resolve(results);
                 }
             );
         })
     },
     checkForgotPasswordToken: (email) => {
-        return new Promise((resolov, reject) => {
+        return new Promise((resolve, reject) => {
             pool.query(
                 `SELECT count(*) as token_count FROM reset_password WHERE email = ?`, [email],
                 (error, results, fields) => {
@@ -1199,13 +1213,13 @@ module.exports = {
                         return reject(error);
                     }
                     console.log(results)
-                    return resolov(results);
+                    return resolve(results);
                 }
             );
         })
     },
     checkForgotPasswordTokenWithToken: (email, token) => {
-        return new Promise((resolov, reject) => {
+        return new Promise((resolve, reject) => {
             pool.query(
                 `SELECT count(*) as token_count FROM reset_password WHERE email = ? AND token = ?`, [email, token],
                 (error, results, fields) => {
@@ -1213,13 +1227,13 @@ module.exports = {
                         return reject(error);
                     }
                     console.log(results)
-                    return resolov(results);
+                    return resolve(results);
                 }
             );
         })
     },
     removeForgotPasswordToken: (email) => {
-        return new Promise((resolov, reject) => {
+        return new Promise((resolve, reject) => {
             pool.query(
                 `DELETE FROM reset_password WHERE email = ?`, [email],
                 (error, results, fields) => {
@@ -1227,13 +1241,13 @@ module.exports = {
                         return reject(error);
                     }
                     console.log(results)
-                    return resolov(results);
+                    return resolve(results);
                 }
             );
         })
     },
     setAllSupplierStatusToZero: (company_id) => {
-        return new Promise((resolov, reject) => {
+        return new Promise((resolve, reject) => {
             pool.query(
                 `UPDATE suppliers SET status = 0 WHERE company_id = ?`, [company_id],
                 (error, results, fields) => {
@@ -1241,13 +1255,13 @@ module.exports = {
                         return reject(error);
                     }
                     console.log(results)
-                    return resolov(results);
+                    return resolve(results);
                 }
             );
         })
     },
     setAllCategoryStatusToZero: (company_id) => {
-        return new Promise((resolov, reject) => {
+        return new Promise((resolve, reject) => {
             pool.query(
                 `UPDATE categories SET category_status = 0 WHERE company_id = ?`, [company_id],
                 (error, results, fields) => {
@@ -1255,7 +1269,37 @@ module.exports = {
                         return reject(error);
                     }
                     console.log(results)
-                    return resolov(results);
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    checkSubscription: (customer_id, subscription_id, company_id) => {
+        console.log(`SELECT count(*) as 'subscription_count' FROM subscriptions WHERE customer_id = '${customer_id}' AND subscription_id = '${subscription_id}' AND company_id = '${company_id}'`)
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `SELECT count(*) as 'subscription_count' FROM subscriptions WHERE customer_id = ? AND subscription_id = ? AND company_id = ?`, [customer_id, subscription_id, company_id],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    updateUserPlan: (user_id, subscription_type) => {
+        console.log(`UPDATE users SET subscription_type = ${subscription_type} WHERE id = ${user_id}`)
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `UPDATE users SET subscription_type = ? WHERE id = ?`, [subscription_type, user_id],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolve(results);
                 }
             );
         })

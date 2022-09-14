@@ -37,6 +37,7 @@ const {
     updateUserProfile,
     changeUserPassword,
     subscribe,
+    subscribeCompany,
     checkForgotPasswordToken,
     resetUserPassword
 } = require("./user.controller");
@@ -101,6 +102,8 @@ router.get('/getLastSyncedActivity/:company_id/:type', getLastSyncedActivity);
 
 router.post('/subscribe', validateAdminPermission, subscribe)
 
+router.post('/subscribeCompany', validateAdminPermission, subscribeCompany)
+
 router.get('/all_stripe_customers', async (req, res) => {
     const customers = await stripe.customers.list();
 
@@ -109,7 +112,7 @@ router.get('/all_stripe_customers', async (req, res) => {
         await subscriptions.data.map(async (subscription) => {
             if (e.id === subscription.customer) {
                 if(subscription.items.data[0].price.id === "price_1LXMCYA94Y1iT6R5fFNpuQgw") {
-                    console.log("subscriptions of customer ",e.id,":::",subscription);
+                    console.log("subscriptions of customer:",e.id,"sub id:",subscription.id,"quantity:",subscription.quantity);
                 }
             }
         });
@@ -119,13 +122,15 @@ router.get('/all_stripe_customers', async (req, res) => {
 });
 
 router.post("/createUser",validateAdminPermission, createUser);
-router.get("/user/creation/success/:company_id/:user_id/:email/:selected_plan", validateAdminPermission, userCreationSuccess);
+// router.get("/user/creation/success/:company_id/:user_id/:email/:selected_plan", validateAdminPermission, userCreationSuccess);
+router.post("/user/creation/success", validateAdminPermission, userCreationSuccess);
+// router.get("/user/creation/failed/:user_id", validateAdminPermission, userCreationFailed);
 router.get("/user/creation/failed/:user_id", validateAdminPermission, userCreationFailed);
 router.get("/checkSetupAccount/:email/:token", checkSetupAccount);
 router.post("/updateAccountInformation", updateAccountInformation);
-router.get('/deactivate/:id',validateAdminPermission, deactivate);
-router.get('/activate/:id',validateAdminPermission, activate);
-router.get('/hardDeleteUser/:id',validateAdminPermission, hardDeleteUser);
+router.get('/deactivate/:id/:company_id/:plan',validateAdminPermission, deactivate);
+router.get('/activate/:id/:company_id/:plan',validateAdminPermission, activate);
+router.get('/hardDeleteUser/:id/:company_id/:plan',validateAdminPermission, hardDeleteUser);
 router.post('/updateUser', validateAdminPermission, updateUser);
 
 router.post('/updateUserProfile', validateUserPermission, updateUserProfile);

@@ -4,6 +4,7 @@ const nodeMailer = require("nodemailer");
 const {supplierCount} = require("./user.service");
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const {subject, template} = require('../assets/mailConfig');
+const moment = require('moment');
 const {
     getUserByEmail,
     getUser,
@@ -51,7 +52,10 @@ const {
     updateForgotPasswordToken,
     checkForgotPasswordTokenWithToken,
     checkForgotPasswordToken,
-    removeForgotPasswordToken
+    removeForgotPasswordToken,
+    checkSubscription,
+    updateSubscription,
+    updateUserPlan
 } = require("./user.service");
 const { sign } = require("jsonwebtoken");
 
@@ -754,41 +758,38 @@ module.exports = {
     },
     userCreationSuccess: async (req, res) => {
         try {
-            const company_id = req.params.company_id;
-            const user_id = req.params.user_id;
-            const email = req.params.email;
-            const selected_plan = req.params.selected_plan;
+            const {company_id, user_id, email, selected_plan, customer_id, subscription_id, quantity} = req.body;
 
+            console.log("userCreationSuccess body", req.body);
             const token = crypto.randomBytes(48).toString('hex');
-            console.log("token for user", token);
-            const result = setTokenForFirstTimeLogin(user_id, token);
+
+            const result = await setTokenForFirstTimeLogin(user_id, token);
+            console.log("result",result)
+            const updateUserPlanResult = await updateUserPlan(user_id, selected_plan);
+            console.log("updateUserPlanResult",updateUserPlanResult)
 
             let amount = selected_plan==="monthly"?999:9588;
+            const checkSubscriptionResponse = await checkSubscription(customer_id, subscription_id, company_id);
+            console.log("checkSubscriptionResponse",checkSubscriptionResponse);
+            if(checkSubscriptionResponse[0].subscription_count === 0) {
+                const createSubscriptionResult = await storeSubscription(company_id, customer_id, subscription_id, amount, selected_plan, quantity);
+                console.log("subscription created",createSubscriptionResult.insertId);
+            }
+            else {
+                const updateSubscriptionResult = await updateSubscription(company_id, customer_id, subscription_id, quantity);
+                console.log("subscription updated",updateSubscriptionResult);
+            }
 
-            const customers = await stripe.customers.list();
-            console.log('customers',customers.data);
-            await customers.data.map(async (customer) => {
-                if(customer.email === email) {
-                    console.log("customer is", customer);
-                    const subscriptions = await stripe.subscriptions.list();
-                    await subscriptions.data.map(async (subscription) => {
-                        if(customer.id === subscription.customer) {
-                            console.log("subscription id",subscription.id);
-                            const createSubscriptionResult = await storeSubscription(user_id, company_id, customer.id,subscription.id, amount, selected_plan);
-                            console.log("subscription created",createSubscriptionResult.insertId);
-                        }
-                    });
-                }
-            });
 
             let setup_account_url = process.env.APP_URL+"setup/account/"+email+"/"+token;
             let html = "<html><head></head><body style='background-color: #eaeaea;padding-top: 30px;padding-bottom: 30px'><div style='width: 50%;margin-left:auto;margin-right:auto;margin-top: 30px;margin-bottom: 30px;margin-top:20px;border-radius: 5px;background-color: white;height: 100%;padding-bottom: 30px;overflow: hidden'><div style='background-color: white;padding-top: 20px;padding-bottom: 20px;width: 100%;text-align: center'><img src='https://wepull.netlify.app/finalLogo.png' width='100px' style='margin: auto'/></div><hr/><h1 style='text-align: center'>You are invited!</h1><p style='padding-left: 10px;padding-right: 10px'>Hi,<br/><br/>You are invited to join WePull. Click on the button below to set a password for your account.<br/><br/><a href='"+setup_account_url+"' style='text-decoration: none;width: 100%'><button style='border-radius: 5px;background-color: #1a2956;color:white;border: none;margin-left: auto;margin-right: auto;padding:10px;cursor: pointer'>Accept Invitation</button></a><br/><br/>Our team is always here to help. If you have any questions or need further assistance, contact us via email at support@wepull.io</p></div></body></html>"
             let transporter = nodeMailer.createTransport({
-                host: "smtp.mail.yahoo.com",
+                host: "smtp.gmail.com",
                 port: 465,
+                secure: true, // use SSL
                 auth: {
-                    user: "mohsinjaved414@yahoo.com",
-                    pass: "exvnhtussrqkmqcr"
+                    user: "no-reply@wepull.io",
+                    pass: "hpnxtbitpndrxbfv"
                 },
                 debug: true, // show debug output
                 logger: true
@@ -815,12 +816,82 @@ module.exports = {
                 }
             });
         } catch (e) {
+            console.log("error while success", e)
             return res.json({
                 status: 500,
                 message: "Error :" + e.message,
             });
         }
     },
+    // userCreationSuccess: async (req, res) => {
+    //     try {
+    //         const company_id = req.params.company_id;
+    //         const user_id = req.params.user_id;
+    //         const email = req.params.email;
+    //         const selected_plan = req.params.selected_plan;
+    //
+    //         const token = crypto.randomBytes(48).toString('hex');
+    //         console.log("token for user", token);
+    //         const result = setTokenForFirstTimeLogin(user_id, token);
+    //
+    //         let amount = selected_plan==="monthly"?999:9588;
+    //
+    //         const customers = await stripe.customers.list();
+    //         console.log('customers',customers.data);
+    //         await customers.data.map(async (customer) => {
+    //             if(customer.email === email) {
+    //                 console.log("customer is", customer);
+    //                 const subscriptions = await stripe.subscriptions.list();
+    //                 await subscriptions.data.map(async (subscription) => {
+    //                     if(customer.id === subscription.customer) {
+    //                         console.log("subscription id",subscription.id);
+    //                         const createSubscriptionResult = await storeSubscription(user_id, company_id, customer.id,subscription.id, amount, selected_plan);
+    //                         console.log("subscription created",createSubscriptionResult.insertId);
+    //                     }
+    //                 });
+    //             }
+    //         });
+    //
+    //         let setup_account_url = process.env.APP_URL+"setup/account/"+email+"/"+token;
+    //         let html = "<html><head></head><body style='background-color: #eaeaea;padding-top: 30px;padding-bottom: 30px'><div style='width: 50%;margin-left:auto;margin-right:auto;margin-top: 30px;margin-bottom: 30px;margin-top:20px;border-radius: 5px;background-color: white;height: 100%;padding-bottom: 30px;overflow: hidden'><div style='background-color: white;padding-top: 20px;padding-bottom: 20px;width: 100%;text-align: center'><img src='https://wepull.netlify.app/finalLogo.png' width='100px' style='margin: auto'/></div><hr/><h1 style='text-align: center'>You are invited!</h1><p style='padding-left: 10px;padding-right: 10px'>Hi,<br/><br/>You are invited to join WePull. Click on the button below to set a password for your account.<br/><br/><a href='"+setup_account_url+"' style='text-decoration: none;width: 100%'><button style='border-radius: 5px;background-color: #1a2956;color:white;border: none;margin-left: auto;margin-right: auto;padding:10px;cursor: pointer'>Accept Invitation</button></a><br/><br/>Our team is always here to help. If you have any questions or need further assistance, contact us via email at support@wepull.io</p></div></body></html>"
+    //         let transporter = nodeMailer.createTransport({
+    //             host: "smtp.mail.yahoo.com",
+    //             port: 465,
+    //             auth: {
+    //                 user: "mohsinjaved414@yahoo.com",
+    //                 pass: "exvnhtussrqkmqcr"
+    //             },
+    //             debug: true, // show debug output
+    //             logger: true
+    //         });
+    //         let mailOptions = {
+    //             from: 'WePull Support <mohsinjaved414@yahoo.com>',
+    //             to: email,
+    //             subject: 'WePull Account Creation',
+    //             html: html
+    //         };
+    //         await transporter.sendMail(mailOptions, (err, info) => {
+    //             if (err) {
+    //                 console.log("err",err)
+    //                 return res.json({
+    //                     "status": "200",
+    //                     "message": "User created successfully, Email Failed"
+    //                 });
+    //             } else {
+    //                 return res.json({
+    //                     status: 200,
+    //                     message: "User created successfully",
+    //                     user_id: user_id,
+    //                 });
+    //             }
+    //         });
+    //     } catch (e) {
+    //         return res.json({
+    //             status: 500,
+    //             message: "Error :" + e.message,
+    //         });
+    //     }
+    // },
     userCreationFailed: async (req, res) => {
         try {
             const user_id = req.params.user_id;
@@ -879,25 +950,28 @@ module.exports = {
     deactivate: async(req, res) => {
         try {
             const id = req.params.id;
+            const company_id = req.params.company_id;
+            const plan = req.params.plan;
+
             const user = await deactivate(id);
 
-            const getSubscriptionResult = await getSubscription(id);
+            const getSubscriptionResult = await getSubscription(company_id, plan);
+            let quantity = parseInt(getSubscriptionResult[0].quantity) - 1;
+            console.log("new quantity",quantity);
+            console.log("getSubscriptionResult",getSubscriptionResult[0].subscription_id);
+            const updateSubscriptionQuantity = await stripe.subscriptions.update(getSubscriptionResult[0].subscription_id, {
+                quantity: quantity
+            });
 
-            const subscription = await stripe.subscriptions.update(
-                getSubscriptionResult[0].subscription_id,
-                {pause_collection: {behavior: 'void'}}
-            );
-
-            const updateStatusOfSubscriptionResult = await updateStatusOfSubscription('paused', id);
-
-            console.log("subscription pause",subscription);
+            const updateSubscriptionResult = await updateSubscription(company_id, getSubscriptionResult[0].customer_id, getSubscriptionResult[0].subscription_id, quantity);
+            console.log("subscription updated",updateSubscriptionResult);
 
             return res.json({
                 status: 200,
                 message: "User deactivated successfully"
             });
         } catch (e) {
-            return res.status(404).json({
+            return res.json({
                 status: 500,
                 message: "Error :" + e.message,
             });
@@ -907,26 +981,26 @@ module.exports = {
         try {
             const id = req.params.id;
             const user = await activate(id);
+            const company_id = req.params.company_id;
+            const plan = req.params.plan;
 
-            const getSubscriptionResult = await getSubscription(id);
+            const getSubscriptionResult = await getSubscription(company_id, plan);
+            let quantity = +parseInt(getSubscriptionResult[0].quantity) + +1;
+            console.log("new quantity",quantity);
+            console.log("getSubscriptionResult",getSubscriptionResult[0].subscription_id);
+            const updateSubscriptionQuantity = await stripe.subscriptions.update(getSubscriptionResult[0].subscription_id, {
+                quantity: quantity
+            });
 
-            const subscription = await stripe.subscriptions.update(
-                getSubscriptionResult[0].subscription_id,
-                {
-                    pause_collection: '',
-                }
-            );
-
-            const updateStatusOfSubscriptionResult = await updateStatusOfSubscription('active', id);
-
-            console.log("subscription activated",subscription);
+            const updateSubscriptionResult = await updateSubscription(company_id, getSubscriptionResult[0].customer_id, getSubscriptionResult[0].subscription_id, quantity);
+            console.log("subscription updated",updateSubscriptionResult);
 
             return res.json({
                 status: 200,
                 message: "User activated successfully"
             });
         } catch (e) {
-            return res.status(404).json({
+            return res.json({
                 status: 500,
                 message: "Error :" + e.message,
             });
@@ -935,25 +1009,30 @@ module.exports = {
     hardDeleteUser: async(req, res) => {
         try {
             const id = req.params.id;
-            const getSubscriptionResult = await getSubscription(id);
+            const company_id = req.params.company_id;
+            const plan = req.params.plan;
 
+            const getSubscriptionResult = await getSubscription(company_id, plan);
+            let quantity = parseInt(getSubscriptionResult[0].quantity) - 1;
+            console.log("new quantity",quantity);
             console.log("getSubscriptionResult",getSubscriptionResult[0].subscription_id);
-            const deleted = await stripe.subscriptions.del(
-                getSubscriptionResult[0].subscription_id
-            );
+            const updateSubscriptionQuantity = await stripe.subscriptions.update(getSubscriptionResult[0].subscription_id, {
+                    quantity: quantity
+            });
 
-            console.log("subscription deleted",deleted);
+            const updateSubscriptionResult = await updateSubscription(company_id, getSubscriptionResult[0].customer_id, getSubscriptionResult[0].subscription_id, quantity);
+            console.log("subscription updated",updateSubscriptionResult);
 
             const deleteUserRelationsResult = await deleteUserRelationsByUserId(id);
             const hardDeleteUserResult = await deleteUserByID(id);
-            const deleteUserSubscriptionResult = await deleteUserSubscription(id);
+            // const deleteUserSubscriptionResult = await deleteUserSubscription(id);
 
             return res.json({
                 status: 200,
                 message: "User deleted successfully"
             });
         } catch (e) {
-            return res.status(404).json({
+            return res.json({
                 status: 500,
                 message: "Error :" + e.message,
             });
@@ -1052,5 +1131,160 @@ module.exports = {
                 message: e
             })
         }
-    }
+    },
+    subscribeCompany: async (req, res) => {
+        try {
+            //email = admin email
+            const {email, payment_method, plan} = req.body;
+
+            //create date to take payment on next month 1st day
+            const date = new Date();
+            const nextMonthFirstDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+            const nextMonth = moment(nextMonthFirstDate).unix();
+            console.log("nextMonthFirstDate",nextMonth)
+
+            //set price id of selected plan
+            let price_id = "";
+            if(plan === "monthly") {
+                price_id = 'price_1LXMCYA94Y1iT6R5fFNpuQgw';
+            }
+            else {
+                price_id = 'price_1LYTahA94Y1iT6R5NHXTQg8w';
+            }
+
+            //Check if customer created or not
+            let isCustomerCreated = false;
+            let customer;
+            const customers = await stripe.customers.list();
+
+            for (let i=0;i<customers.data.length;i++) {
+                console.log("el.email",customers.data[i].email,"=== email",email)
+                if(customers.data[i].email === email) {
+                    console.log("customer exist");
+                    isCustomerCreated = true;
+                    //if customer already exist el = customer object
+                    customer = customers.data[i];
+                    break;
+                }
+                else {
+                    console.log("customer not exist");
+                    isCustomerCreated = false;
+                }
+            }
+
+            console.log("isCustomerCreated",isCustomerCreated);
+            if(!isCustomerCreated) {
+                //create customer by admin email
+                customer = await stripe.customers.create({
+                    payment_method: payment_method,
+                    email: email,
+                    invoice_settings: {
+                        default_payment_method: payment_method,
+                    },
+                });
+            }
+
+            console.log("email is ",email)
+            console.log("selected plan is ",plan);
+            console.log("selected plan price_id is ",price_id);
+            console.log("customer is ",customer);
+
+            let isSubscriptionCreated = false;
+            let subscriptionResponse;
+            let subscriptionStatus = "";
+
+            const subscriptions = await stripe.subscriptions.list();
+            for(let i=0;i<subscriptions.data.length;i++) {
+                if (customer.id === subscriptions.data[i].customer) {
+                    console.log("customer do exist in subscription")
+                    //Check if any subscription created by admin email
+                    if(subscriptions.data[i].items.data[0].price.id === price_id) {
+                        subscriptionResponse = subscriptions.data[i];
+                        subscriptionStatus = "customer price exist";
+                        break;
+                    }
+                    else {
+                        subscriptionStatus = "customer exist but price do not exist";
+                        break;
+                    }
+                }
+                else{
+                    console.log("customer do not exist in subscription")
+                    subscriptionStatus = "customer subscription do not exist";
+                }
+            }
+
+            let subscriptionData;
+            if(subscriptionStatus === "customer price exist") {
+                console.log("final subscriptionStatus",subscriptionStatus);
+                console.log("subscription", subscriptionResponse);
+                console.log("subscriptions of customer ",customer.id);
+                console.log("subscription exist for" ,plan);
+                console.log("updating subscription quantity");
+                //add quantity of plan
+                let quantity =  +parseInt(subscriptionResponse.quantity) + +1;
+                console.log("subscription",subscriptionResponse.id,"new quantity",quantity);
+                //update quantity of subscription
+                subscriptionData = await stripe.subscriptions.update(subscriptionResponse.id, {
+                    quantity: quantity,
+                    expand: ['latest_invoice.payment_intent']
+                });
+            }
+            else if (subscriptionStatus === "customer exist but price do not exist") {
+                console.log("final subscriptionStatus",subscriptionStatus);
+                console.log("creating a subscription for" ,plan);
+                subscriptionData = await stripe.subscriptions.create({
+                    customer: customer.id,
+                    items: [{ price: price_id }],
+                    billing_cycle_anchor: nextMonth,
+                    expand: ['latest_invoice.payment_intent']
+                });
+            }
+            else if(subscriptionStatus === "customer subscription do not exist") {
+                console.log("final subscriptionStatus",subscriptionStatus);
+                console.log("creating a subscription for" ,plan);
+                subscriptionData = await stripe.subscriptions.create({
+                    customer: customer.id,
+                    items: [{ price: price_id }],
+                    billing_cycle_anchor: nextMonth,
+                    expand: ['latest_invoice.payment_intent']
+                });
+            }
+
+
+            // //iff subscription success
+            if(subscriptionData) {
+                console.log("subscription",subscriptionData);
+                const status = subscriptionData.latest_invoice.payment_intent.status;
+                const client_secret = subscriptionData.latest_invoice.payment_intent.client_secret;
+                console.log({
+                    'client_secret': client_secret,
+                    'status': status,
+                    'customer_id': customer.id,
+                    'subscription_id': subscriptionData.id,
+                    'quantity': subscriptionData.quantity
+                });
+                return res.json({
+                    'client_secret': client_secret,
+                    'status': status,
+                    'customer_id': customer.id,
+                    'subscription_id': subscriptionData.id,
+                    'quantity': subscriptionData.quantity
+                });
+            }
+            else{
+                //error
+                return res.json({
+                    status:500,
+                    message: "Something went wrong while creating subscription"
+                })
+            }
+        }
+        catch (e) {
+            return res.json({
+                status:500,
+                message: "Went wrong"
+            })
+        }
+    },
 };
