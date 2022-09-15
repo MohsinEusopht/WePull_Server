@@ -71,7 +71,9 @@ const {
     getSubscription,
     deleteUserSubscription,
     setAllSupplierStatusToZero,
-    setAllCategoryStatusToZero
+    setAllCategoryStatusToZero,
+    getCompanySubscription,
+    deleteCompanySubscription
 } = require("../users/user.service");
 
 const {
@@ -1220,20 +1222,32 @@ module.exports = {
                 const setForeignKeyResult8 = await setForeignKeyDisable('attachables');
                 const setForeignKeyResult9 = await setForeignKeyDisable('user_relations');
 
-                const getCompanyUsersResponse = await getCompanyUsers(company_id);
-                if(getCompanyUsersResponse.length > 0) {
-                    for (let i=0;i<getCompanyUsersResponse.length;i++) {
-                        const getSubscriptionResult = await getSubscription(getCompanyUsersResponse[i].id);
-                        console.log("canceling Subscription for user",getCompanyUsersResponse[i].email," sub id:",getSubscriptionResult[0].subscription_id);
-                        const deleted = await stripe.subscriptions.del(
-                            getSubscriptionResult[0].subscription_id
-                        );
-                        const deleteUserSubscriptionResult = await deleteUserSubscription(getCompanyUsersResponse[i].id);
+                const getSubscriptionResult = await getCompanySubscription(company_id);
+                console.log("getSubscriptionResult",getSubscriptionResult)
+                if(getSubscriptionResult.length > 0) {
+                    for (let i=0;i<getSubscriptionResult.length;i++) {
+                        const updateSubscriptionQuantity = await stripe.subscriptions.del(getSubscriptionResult[i].subscription_id);
+                        console.log("subscription canceled ", getSubscriptionResult[i].subscription_id)
+                        const deleteUserSubscriptionResult = await deleteCompanySubscription(company_id, getSubscriptionResult[i].subscription_id);
+                        console.log("subscription deleted from our db",deleteUserSubscriptionResult);
                     }
                 }
-                else {
-                    console.log("no user found for the company",company_id)
-                }
+
+
+                // const getCompanyUsersResponse = await getCompanyUsers(company_id);
+                // if(getCompanyUsersResponse.length > 0) {
+                //     for (let i=0;i<getCompanyUsersResponse.length;i++) {
+                //         const getSubscriptionResult = await getSubscription(getCompanyUsersResponse[i].id);
+                //         console.log("canceling Subscription for user",getCompanyUsersResponse[i].email," sub id:",getSubscriptionResult[0].subscription_id);
+                //         const deleted = await stripe.subscriptions.del(
+                //             getSubscriptionResult[0].subscription_id
+                //         );
+                //         const deleteUserSubscriptionResult = await deleteUserSubscription(getCompanyUsersResponse[i].id);
+                //     }
+                // }
+                // else {
+                //     console.log("no user found for the company",company_id)
+                // }
 
                 await removeExpenses(company_id).then(async () => {
                     await removeUserRelations(company_id).then(async () => {
@@ -1255,12 +1269,13 @@ module.exports = {
                                                     const user_companies_after_deletion = await getCompanyByUserID(user_id);
                                                     console.log("user_companies_after_deletion",user_companies_after_deletion);
                                                     uc_length = user_companies_after_deletion.length;
-                                                    uc_active_company = user_companies_after_deletion[0].id;
                                                     if (user_companies_after_deletion.length > 0) {
+                                                        uc_active_company = user_companies_after_deletion[0].id;
                                                         console.log("user_companies", user_companies_after_deletion);
                                                         const disableAllCompanyResult = await disableAllCompany(user_id);
                                                         const activateCompanyResult = await activateCompany(user_companies_after_deletion[0].id);
                                                     } else {
+                                                        uc_active_company = null;
                                                         console.log("change user status to 0");
                                                         const updateUserStatusResult = await updateUserStatus(user_id, 0);
                                                         console.log("updateUserStatus");
@@ -1274,29 +1289,30 @@ module.exports = {
                         })
                     })
                 });
+
+                let message;
+                if(uc_length === 0) {
+                    message = "You have disconnected all companies from WePull, Please sign up again to activate your account."
+                }
+                else {
+                    message =  company[0].company_name + " has been disconnected from WePull."
+                }
+
+
+                return res.json({
+                    status: 200,
+                    message: message,
+                    connection_id: company[0].connection_id,
+                    companies: uc_length,
+                    active_company: uc_active_company
+                });
             }).catch((e) => {
-                console.log(e);
-                // console.log(e.authResponse.response.Url);
-                // console.log(e.authResponse.response.rawHeaders);
+                console.log("error disconct xero",e);
+                return res.json({
+                    status: 500,
+                    message: e
+                })
             });
-            let message;
-            if(uc_length === 0) {
-                message = "You have disconnected all companies from WePull, Please sign up again to activate your account."
-            }
-            else {
-                message =  company[0].company_name + " has been disconnected from WePull."
-            }
-
-
-
-            return res.json({
-                status: 200,
-                message: message,
-                connection_id: company[0].connection_id,
-                companies: uc_length,
-                active_company: uc_active_company
-            });
-
         }
         catch (e) {
             return res.json({

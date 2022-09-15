@@ -1304,4 +1304,33 @@ module.exports = {
             );
         })
     },
+    getCompanySubscription: (company_id) => {
+        console.log(`SELECT * FROM subscriptions WHERE company_id = ${company_id}`)
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `SELECT * FROM subscriptions WHERE company_id = ?`, [company_id],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    deleteCompanySubscription: (company_id, subscription_id) => {
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `DELETE FROM subscriptions WHERE company_id = ? AND subscription_id = ?`, [company_id, subscription_id],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolve(results);
+                }
+            );
+        })
+    },
 };

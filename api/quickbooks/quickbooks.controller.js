@@ -70,7 +70,9 @@ const {
     getCompanyById,
     getCompanyUsers,
     getSubscription,
-    deleteUserSubscription
+    deleteUserSubscription,
+    getCompanySubscription,
+    deleteCompanySubscription
 } = require("../users/user.service");
 
 
@@ -1571,8 +1573,21 @@ module.exports = {
             let uc_length = null;
             let uc_active_company = null;
 
+
             await oauthClient.revoke({'access_token': company[0].access_token, 'refresh_token': company[0].refresh_token}).then(async (res) => {
                 console.log('Tokens revoked : ' + res);
+
+                const getSubscriptionResult = await getCompanySubscription(company_id);
+                console.log("getSubscriptionResult",getSubscriptionResult)
+                if(getSubscriptionResult.length > 0) {
+                    for (let i=0;i<getSubscriptionResult.length;i++) {
+                        const updateSubscriptionQuantity = await stripe.subscriptions.del(getSubscriptionResult[i].subscription_id);
+                        console.log("subscription canceled ", getSubscriptionResult[i].subscription_id)
+                        const deleteUserSubscriptionResult = await deleteCompanySubscription(company_id, getSubscriptionResult[i].subscription_id);
+                        console.log("subscription deleted from our db",deleteUserSubscriptionResult);
+                    }
+                }
+
                 const setForeignKeyResult1 = await setForeignKeyDisable('companies');
                 const setForeignKeyResult2 = await setForeignKeyDisable('expenses');
                 const setForeignKeyResult4 = await setForeignKeyDisable('users');
@@ -1616,12 +1631,13 @@ module.exports = {
                                                     const setForeignKeyResult9 = await setForeignKeyEnable('user_relations');
                                                     const user_companies_after_deletion = await getCompanyByUserID(user_id);
                                                     uc_length = user_companies_after_deletion.length;
-                                                    uc_active_company = user_companies_after_deletion[0].id;
                                                     if (user_companies_after_deletion.length > 0) {
+                                                        uc_active_company = user_companies_after_deletion[0].id;
                                                         console.log("user_companies", user_companies_after_deletion);
                                                         const disableAllCompanyResult = await disableAllCompany(user_id);
                                                         const activateCompanyResult = await activateCompany(user_companies_after_deletion[0].id);
                                                     } else {
+                                                        uc_active_company = null;
                                                         console.log("change user status to 0");
                                                         const updateUserStatusResult = await updateUserStatus(user_id, 0);
                                                         console.log("updateUserStatus");
@@ -1635,29 +1651,30 @@ module.exports = {
                         })
                     })
                 });
+
+                let message;
+                if(uc_length === 0) {
+                    message = "You have disconnected all companies from WePull, Please sign up again to activate your account."
+                }
+                else {
+                    message =  company[0].company_name + " has been disconnected from WePull."
+                }
+
+
+                return res.json({
+                    status: 200,
+                    message: message,
+                    connection_id: company[0].connection_id,
+                    companies: uc_length,
+                    active_company: uc_active_company
+                });
             }).catch((e) => {
-                console.log(e);
-                // console.log(e.authResponse.response.Url);
-                // console.log(e.authResponse.response.rawHeaders);
+                console.log("error qb disconnect",e);
+                return res.json({
+                    status: 500,
+                    message: e
+                })
             });
-            let message;
-            if(uc_length === 0) {
-                message = "You have disconnected all companies from WePull, Please sign up again to activate your account."
-            }
-            else {
-                message =  company[0].company_name + " has been disconnected from WePull."
-            }
-
-
-
-            return res.json({
-                status: 200,
-                message: message,
-                connection_id: company[0].connection_id,
-                companies: uc_length,
-                active_company: uc_active_company
-            });
-
         }
         catch (e) {
             return res.json({

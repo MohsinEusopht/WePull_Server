@@ -39,7 +39,9 @@ const {
     subscribe,
     subscribeCompany,
     checkForgotPasswordToken,
-    resetUserPassword
+    resetUserPassword,
+    getCompanyCustomerID,
+    getCompanyBills
 } = require("./user.controller");
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const moment = require('moment');
@@ -135,4 +137,9 @@ router.post('/updateUser', validateAdminPermission, updateUser);
 
 router.post('/updateUserProfile', validateUserPermission, updateUserProfile);
 router.post('/changeUserPassword', validateUserPermission, changeUserPassword)
+
+
+router.get('/getCompanyCustomerID/:company_id', validateAdminPermission, getCompanyCustomerID);
+router.get('/getCompanyBills/:customer_id', validateAdminPermission, getCompanyBills);
+
 module.exports = router;

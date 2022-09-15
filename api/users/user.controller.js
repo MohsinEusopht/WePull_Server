@@ -55,7 +55,8 @@ const {
     removeForgotPasswordToken,
     checkSubscription,
     updateSubscription,
-    updateUserPlan
+    updateUserPlan,
+    getCompanySubscription
 } = require("./user.service");
 const { sign } = require("jsonwebtoken");
 
@@ -1139,9 +1140,17 @@ module.exports = {
 
             //create date to take payment on next month 1st day
             const date = new Date();
-            const nextMonthFirstDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-            const nextMonth = moment(nextMonthFirstDate).unix();
-            console.log("nextMonthFirstDate",nextMonth)
+            let nextMonth;
+            console.log("date.getDay().toString()",date.getDay().toString());
+            if(date.getDay().toString() !== "1" && date.getDay().toString() !== "01") {
+                const nextMonthFirstDate = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+                nextMonth = moment(nextMonthFirstDate).unix();
+                console.log("nextMonthFirstDate",nextMonth)
+            }
+            else {
+                nextMonth = moment(date).unix()
+            }
+
 
             //set price id of selected plan
             let price_id = "";
@@ -1285,6 +1294,41 @@ module.exports = {
                 status:500,
                 message: "Went wrong"
             })
+        }
+    },
+    getCompanyCustomerID: async(req, res) => {
+        try {
+            const company_id = req.params.company_id;
+            const getSubscriptionResult = await getCompanySubscription(company_id);
+            let customer_id = getSubscriptionResult.length>0?getSubscriptionResult[0].customer_id:null;
+            return res.json({
+                status: 200,
+                customer_id: customer_id,
+                subscriptions: getSubscriptionResult
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    getCompanyBills: async(req, res) => {
+        try {
+            const customer_id = req.params.customer_id;
+            const bills = await stripe.invoices.list({
+                customer: customer_id
+            });
+
+            return res.json({
+                status: 200,
+                data: bills
+            });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
         }
     },
 };
