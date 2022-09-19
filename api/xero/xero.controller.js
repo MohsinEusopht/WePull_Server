@@ -1206,7 +1206,7 @@ module.exports = {
             const company = await getCompanyByID(company_id);
             const user = await getUserById(user_id);
 
-
+            console.log("userrrr",user);
 
             let uc_length = null;
             let uc_active_company = null;
@@ -1290,28 +1290,29 @@ module.exports = {
                     })
                 });
 
-                let message;
-                if(uc_length === 0) {
-                    message = "You have disconnected all companies from WePull, Please sign up again to activate your account."
-                }
-                else {
-                    message =  company[0].company_name + " has been disconnected from WePull."
-                }
-
-
-                return res.json({
-                    status: 200,
-                    message: message,
-                    connection_id: company[0].connection_id,
-                    companies: uc_length,
-                    active_company: uc_active_company
-                });
             }).catch((e) => {
-                console.log("error disconct xero",e);
+                console.log("error disconnected xero",e);
                 return res.json({
                     status: 500,
                     message: e
                 })
+            });
+
+            let message;
+            if(uc_length === 0) {
+                message = "You have disconnected all companies from WePull, Please sign up again to activate your account."
+            }
+            else {
+                message =  company[0].company_name + " has been disconnected from WePull."
+            }
+
+
+            return res.json({
+                status: 200,
+                message: message,
+                connection_id: company[0].connection_id,
+                companies: uc_length,
+                active_company: uc_active_company
             });
         }
         catch (e) {
