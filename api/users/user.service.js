@@ -868,7 +868,7 @@ module.exports = {
                 `UPDATE users SET token = ?, xero_id_token = ?,xero_access_token = ?,xero_refresh_token = ?,xero_expire_at = ?, status = ? WHERE id = ?`, [token, xero_id_token,xero_access_token, xero_refresh_token, xero_expire_at, status, user_id],
                 (error, results, fields) => {
                     if (error) {
-                        console.log(error);
+                        console.log("error while updating token",error);
                         return reject(error);
                     }
                     return resolve(results);
@@ -1323,6 +1323,34 @@ module.exports = {
         return new Promise((resolve, reject) => {
             pool.query(
                 `DELETE FROM subscriptions WHERE company_id = ? AND subscription_id = ?`, [company_id, subscription_id],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    getAllCompanies: () => {
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `SELECT * FROM companies`, [],
+                (error, results, fields) => {
+                    if (error) {
+                        return reject(error);
+                    }
+                    console.log(results)
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    getUserOfCompany: (company_id) => {
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `SELECT count(*) as 'user_count' FROM users WHERE company_id = ?`, [company_id],
                 (error, results, fields) => {
                     if (error) {
                         return reject(error);

@@ -56,7 +56,9 @@ const {
     checkSubscription,
     updateSubscription,
     updateUserPlan,
-    getCompanySubscription
+    getCompanySubscription,
+    getAllCompanies,
+    getUserOfCompany
 } = require("./user.service");
 const { sign } = require("jsonwebtoken");
 
@@ -676,6 +678,22 @@ module.exports = {
             });
         }
     },
+    checkUserEmail: async (req, res) => {
+        try {
+            const {email} = req.body;
+            const checkRes = await checkUserEmail(email);
+            return res.json({
+                status: 200,
+                data: checkRes[0].user_count
+            });
+        }
+        catch (e) {
+            return  res.json({
+                status: 500,
+                message: e
+            })
+        }
+    },
     updateUser: async (req, res) => {
         try {
             const body = req.body;
@@ -1043,7 +1061,6 @@ module.exports = {
         try {
             const user_id = req.params.user_id;
             const user = await getUserById(user_id);
-            const subscription = await getSubscriptionByUserID(user_id);
 
             // user[0].password = undefined;
             console.log("getUserByUserID",user[0]);
@@ -1051,7 +1068,7 @@ module.exports = {
             return res.json({
                 status: 200,
                 user: user[0].email,
-                subscription: subscription[0].package_duration
+                subscription: user[0].subscription_type
             })
         } catch (e) {
             return res.status(404).json({
@@ -1320,10 +1337,87 @@ module.exports = {
                 customer: customer_id
             });
 
+            const events = await stripe.events.list({
+                limit:1000,
+                related_object: customer_id
+            });
+
+            // const events = await stripe.event.list()
+            console.log("events", events.data);
+
             return res.json({
                 status: 200,
-                data: bills
+                data: bills,
+                events: events.data
             });
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    getAllCompanies: async(req, res) => {
+        try {
+            const email = req.params.email;
+            console.log("email is",email)
+            const user = await getUserByEmail(email);
+            if(user) {
+                if(user[0].role_id === 3) {
+                    const companies = await getAllCompanies();
+                    return res.json({
+                        status: 200,
+                        data: companies
+                    })
+                }
+                else {
+                    return res.json({
+                        status: 500,
+                        message: "Invalid access",
+                    });
+                }
+            }
+            else {
+                return res.json({
+                    status: 500,
+                    message: "Invalid access",
+                });
+            }
+        } catch (e) {
+            return res.json({
+                status: 500,
+                message: "Error :" + e.message,
+            });
+        }
+    },
+    getCount: async(req, res) => {
+        try {
+            const email = req.params.email;
+            const company_id = req.params.company_id;
+            console.log("email isssss",email)
+            const user = await getUserByEmail(email);
+            if(user) {
+                if(user[0].role_id === 3) {
+                    const user = await getUserOfCompany(company_id);
+                    console.log("users count ", user);
+                    return res.json({
+                        status: 200,
+                        users: user[0].user_count
+                    })
+                }
+                else {
+                    return res.json({
+                        status: 500,
+                        message: "Invalid access",
+                    });
+                }
+            }
+            else {
+                return res.json({
+                    status: 500,
+                    message: "Invalid access",
+                });
+            }
         } catch (e) {
             return res.json({
                 status: 500,

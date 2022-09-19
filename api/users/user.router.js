@@ -25,6 +25,7 @@ const {
     activateCompany,
     getLastSyncedActivity,
     createUser,
+    checkUserEmail,
     userCreationSuccess,
     userCreationFailed,
     checkSetupAccount,
@@ -41,7 +42,9 @@ const {
     checkForgotPasswordToken,
     resetUserPassword,
     getCompanyCustomerID,
-    getCompanyBills
+    getCompanyBills,
+    getAllCompanies,
+    getCount,
 } = require("./user.controller");
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const moment = require('moment');
@@ -124,6 +127,7 @@ router.get('/all_stripe_customers', async (req, res) => {
 });
 
 router.post("/createUser",validateAdminPermission, createUser);
+router.post("/checkUserEmail", validateAdminPermission, checkUserEmail);
 // router.get("/user/creation/success/:company_id/:user_id/:email/:selected_plan", validateAdminPermission, userCreationSuccess);
 router.post("/user/creation/success", validateAdminPermission, userCreationSuccess);
 // router.get("/user/creation/failed/:user_id", validateAdminPermission, userCreationFailed);
@@ -141,5 +145,8 @@ router.post('/changeUserPassword', validateUserPermission, changeUserPassword)
 
 router.get('/getCompanyCustomerID/:company_id', validateAdminPermission, getCompanyCustomerID);
 router.get('/getCompanyBills/:customer_id', validateAdminPermission, getCompanyBills);
+
+router.get('/getAllCompanies/:email', getAllCompanies);
+router.get('/getCount/:company_id/:email', getCount);
 
 module.exports = router;

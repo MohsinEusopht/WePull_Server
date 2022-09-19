@@ -1308,10 +1308,18 @@ module.exports = {
                                         return res.redirect(`${process.env.APP_URL}companies`);
                                     }
                                 }
-                                else {
+                                else if(request_type === "connect") {
                                     console.log("already exist reditect to")
                                     console.log(`${process.env.APP_URL}companies`);
                                     return res.redirect(`${process.env.APP_URL}companies`);
+                                }
+                                else if (request_type === "sign-up") {
+                                    const getUserData = await getUserByEmail(email);
+                                    const user_id = getUserData[0].id;
+                                    const updateLoginTokenResult = await updateLoginToken(user_id, token, null, null, null, null, 1);
+                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
+                                    console.log("redirecting to",`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token)
+                                    return res.redirect(`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token);
                                 }
                             }
                         }
