@@ -46,8 +46,8 @@ const {
     getAllCompanies,
     getCount,
 } = require("./user.controller");
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
-const moment = require('moment');
+// const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
+// const moment = require('moment');
 
 router.get("/", defaultFun);
 
@@ -109,22 +109,22 @@ router.post('/subscribe', validateAdminPermission, subscribe)
 
 router.post('/subscribeCompany', validateAdminPermission, subscribeCompany)
 
-router.get('/all_stripe_customers', async (req, res) => {
-    const customers = await stripe.customers.list();
-
-    customers.data.map(async (e) => {
-        const subscriptions = await stripe.subscriptions.list();
-        await subscriptions.data.map(async (subscription) => {
-            if (e.id === subscription.customer) {
-                if(subscription.items.data[0].price.id === "price_1LXMCYA94Y1iT6R5fFNpuQgw") {
-                    console.log("subscriptions of customer:",e.id,"sub id:",subscription.id,"quantity:",subscription.quantity);
-                }
-            }
-        });
-
-    })
-    return res.json(customers.data);
-});
+// router.get('/all_stripe_customers', async (req, res) => {
+//     const customers = await stripe.customers.list();
+//
+//     customers.data.map(async (e) => {
+//         const subscriptions = await stripe.subscriptions.list();
+//         await subscriptions.data.map(async (subscription) => {
+//             if (e.id === subscription.customer) {
+//                 if(subscription.items.data[0].price.id === "price_1LXMCYA94Y1iT6R5fFNpuQgw") {
+//                     console.log("subscriptions of customer:",e.id,"sub id:",subscription.id,"quantity:",subscription.quantity);
+//                 }
+//             }
+//         });
+//
+//     })
+//     return res.json(customers.data);
+// });
 
 router.post("/createUser",validateAdminPermission, createUser);
 router.post("/checkUserEmail", validateAdminPermission, checkUserEmail);

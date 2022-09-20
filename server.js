@@ -22,23 +22,23 @@ const urlencodedParser = bodyParser.urlencoded({ extended: false });
 
 const path = __dirname + '/client/build';
 app.use(express.static(path));
-app.use(
-    express.json({
-        // We need the raw body to verify webhook signatures.
-        // Let's compute it only when hitting the Stripe webhook endpoint.
-        verify: function (req, res, buf) {
-            if (req.originalUrl.startsWith('/webhook')) {
-                req.rawBody = buf.toString();
-            }
-        },
-    })
-);
-
-app.get('/config', (req, res) => {
-    res.send({
-        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
-    });
-});
+// app.use(
+//     express.json({
+//         // We need the raw body to verify webhook signatures.
+//         // Let's compute it only when hitting the Stripe webhook endpoint.
+//         verify: function (req, res, buf) {
+//             if (req.originalUrl.startsWith('/webhook')) {
+//                 req.rawBody = buf.toString();
+//             }
+//         },
+//     })
+// );
+//
+// app.get('/config', (req, res) => {
+//     res.send({
+//         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
+//     });
+// });
 
 let corsOptions = {
     origin: process.env.APP_URL
@@ -67,15 +67,6 @@ app.all('*', (req, res, next) => {
 app.get('/', async (req, res) => {
     res.sendFile(path + "/index.html");
     // res.send("Apis Working");
-});
-
-app.get('/disconnect', function (req, res) {
-    console.log('The disconnect called ');
-    const authUri = oauthClient.authorizeUri({
-        scope: [OAuthClient.scopes.OpenId, OAuthClient.scopes.Email],
-        state: 'intuit-test',
-    });
-    res.send(authUri);
 });
 
 /**

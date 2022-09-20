@@ -889,10 +889,10 @@ module.exports = {
             );
         })
     },
-    updateQuickbooksCompanyToken: (tenant_id, id_token, access_token, refresh_token, expire_at) => {
+    updateQuickbooksCompanyToken: (tenant_id, access_token, refresh_token, expire_at) => {
         return new Promise((resolve, reject) => {
             pool.query(
-                `UPDATE companies SET id_token = ?, access_token = ?, refresh_token = ?, expire_at = ? WHERE tenant_id = ?`, [id_token, access_token, refresh_token, expire_at, tenant_id],
+                `UPDATE companies SET access_token = ?, refresh_token = ?, expire_at = ? WHERE tenant_id = ?`, [access_token, refresh_token, expire_at, tenant_id],
                 (error, results, fields) => {
                     if (error) {
                         return reject(error);

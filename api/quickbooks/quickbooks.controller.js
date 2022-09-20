@@ -501,7 +501,7 @@ async function getAllAttachableImage(access_token,companyID,attachment_id) {
 //Syncing functions
 async function syncAccounts(user_id, company_id, accounts) {
     try {
-        if(isEmptyObject(accounts) && accounts !== undefined && accounts.length > 0) {
+        if(isEmptyObject(accounts) || accounts === undefined || accounts.length > 0) {
             console.log("accounts is null");
         }
         else {
@@ -531,7 +531,7 @@ async function syncAccounts(user_id, company_id, accounts) {
 async function syncCategories(user_id, company_id, categories) {
     try {
         // console.log("syncCategories",categories[1])
-        if(isEmptyObject(categories) && categories !== undefined && categories.length > 0) {
+        if(isEmptyObject(categories) || categories === undefined || categories.length > 0) {
             console.log("categories is null");
         }
         else {
@@ -607,8 +607,8 @@ async function syncCategories(user_id, company_id, categories) {
 
 async function syncClasses(user_id, company_id, classes) {
     try {
-        // console.log("syncClasses", classes)
-        if (isEmptyObject(classes) && classes !== undefined && classes.length > 0) {
+        console.log("syncClasses", classes)
+        if (isEmptyObject(classes) || classes === undefined || classes.length === 0) {
             console.log("classes is null");
         } else {
             if(classes.length > 1) {
@@ -686,7 +686,7 @@ async function syncClasses(user_id, company_id, classes) {
 async function syncSuppliers(user_id, company_id, suppliers) {
     try {
         // console.log("syncSuppliers", suppliers)
-        if (isEmptyObject(suppliers) && suppliers !== undefined && suppliers.length > 0) {
+        if (isEmptyObject(suppliers) || suppliers === undefined || suppliers.length === 0) {
             console.log("suppliers is null");
         } else {
             for(const Supplier of suppliers) {
@@ -716,7 +716,7 @@ async function syncSuppliers(user_id, company_id, suppliers) {
 
 async function syncPurchases(user_id, company_id, purchases) {
     try {
-        if (isEmptyObject(purchases) && purchases !== undefined && purchases.length > 0) {
+        if (isEmptyObject(purchases) || purchases === undefined || purchases.length === 0) {
             console.log("purchases is null");
         } else {
             for (const Expense of purchases) {
@@ -900,7 +900,7 @@ async function syncPurchases(user_id, company_id, purchases) {
 
 async function syncAttachables(user_id, company_id, attachables) {
     try {
-        if (isEmptyObject(attachables) && attachables !== undefined && attachables.length > 0) {
+        if (isEmptyObject(attachables) || attachables === undefined || attachables.length === 0) {
             console.log("attachables is null");
         } else {
             for (const Attachable of attachables) {
@@ -971,17 +971,16 @@ async function refreshToken(company_id) {
                 console.log("The Refresh Token is", array);
                 let qb_access_token = array.access_token;
                 let qb_refresh_token = array.refresh_token;
-                let qb_id_token = array.id_token;
                 let qb_expire_at = array.x_refresh_token_expires_in;
 
                 let now = new Date();
                 let time = now.getTime();
                 time += 3600 * 1000;
                 let expire_at = time.toString().substring(0,10);
-
+                console.log("here");
                 // const updateRefreshTokenResult = await updateRefreshToken(email, qb_access_token, qb_refresh_token, expire_at);
-                const updateCompanyTokenResult = await updateQuickbooksCompanyToken(company[0].tenant_id, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
-                console.log(updateCompanyTokenResult);
+                const updateCompanyTokenResult = await updateQuickbooksCompanyToken(company[0].tenant_id, qb_access_token, qb_refresh_token, expire_at);
+                console.log("updateCompanyTokenResult",updateCompanyTokenResult);
 
                 tokenSet = {
                     token_type: 'Bearer',
@@ -990,7 +989,7 @@ async function refreshToken(company_id) {
                     refresh_token: qb_refresh_token,
                     x_refresh_token_expires_in: qb_expire_at,
                     realmId: company[0].tenant_id,
-                    id_token: qb_id_token
+                    id_token: company[0].id_token
                 };
 
                 console.log("tokenSet",tokenSet);
@@ -1166,7 +1165,7 @@ module.exports = {
                             console.log("updating email");
                             const updateXeroAccountEmailResult = await updateAccountEmail(getUserData[0].id, email);
                             console.log("updating qb tokens")
-                            const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
+                            const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_access_token, qb_refresh_token, qb_expire_at);
 
                             const updateLoginTokenResult = await updateLoginToken(getUserData[0].id, token, null, null, null, null, 1);
                             let user_id = getUserData[0].id;
@@ -1224,7 +1223,7 @@ module.exports = {
                                     const createUserRoleResult = await createUserRole(user_id, createCompanyResult.insertId, null, 1, null);
                                     console.log("role created company id",createCompanyResult.insertId,"user id",user_id);
                                     const updateQbAccountEmailResult = await updateAccountEmail(user_id, email);
-                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
+                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_access_token, qb_refresh_token, qb_expire_at);
                                     const updateLoginTokenResult = await updateLoginToken(user_id, token, null, null, null, null, 1);
 
                                     let accounts = await getAccounts(qb_access_token, decodedIdToken.realmid);
@@ -1317,7 +1316,7 @@ module.exports = {
                                     const getUserData = await getUserByEmail(email);
                                     const user_id = getUserData[0].id;
                                     const updateLoginTokenResult = await updateLoginToken(user_id, token, null, null, null, null, 1);
-                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_id_token, qb_access_token, qb_refresh_token, qb_expire_at);
+                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_access_token, qb_refresh_token, qb_expire_at);
                                     console.log("redirecting to",`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token)
                                     return res.redirect(`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token);
                                 }
@@ -1760,7 +1759,7 @@ module.exports = {
         catch (e) {
             return res.json({
                 status: 500,
-                message: "Error :" + e.message,
+                message: "Error :" + e,
             });
         }
     },
