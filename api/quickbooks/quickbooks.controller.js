@@ -191,221 +191,224 @@ async function revoke_token(access_token) {
 
 }
 async function getAccounts(access_token, companyID) {
-    const url =
-        oauthClient.environment == 'sandbox'
-            ? OAuthClient.environment.sandbox
-            : OAuthClient.environment.production;
+    try {
+        const url =
+            oauthClient.environment == 'sandbox'
+                ? OAuthClient.environment.sandbox
+                : OAuthClient.environment.production;
 
-    let bearer = 'Bearer ' + access_token;
-    let query = 'select * from Account where Active = true';
-    // console.log(bearer);
-    let options = {
-        'method': 'GET',
-        'Accept': 'application/json',
-        'url': `${url}/v3/company/${companyID}/query?query=${query}&minorversion=63`,
-        'headers': {
-            'Authorization': bearer,
-        }
-    };
-    // console.log("option:",options);
-    // let array = [];
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
-                let result = convert.xml2json(body, {compact: true, spaces: 4});
-                // console.log("account result" ,result);
-                resolve(result);
-            } else {
-                reject(error);
+        let bearer = 'Bearer ' + access_token;
+        let query = 'select * from Account';
+        let options = {
+            'method': 'GET',
+            'Accept': 'application/json',
+            'headers': {
+                'Authorization': bearer,
             }
+        };
+        return new Promise(function(resolve, reject){
+            request(`${url}v3/company/${companyID}/query?query=${query}&minorversion=63`, options, function (error, response, body) {
+                // in addition to parsing the value, deal with possible errors
+                if (error) return reject(error);
+                try {
+                    let result = convert.xml2json(body, {compact: true, spaces: 4});
+                    resolve(result);
+                } catch(e) {
+                    reject(e);
+                }
+            });
         });
-    });
-
+    }
+    catch (e) {
+        console.log("getAccounts error",e)
+    }
 }
 async function getPurchases(access_token, companyID, condition) {
-    const url =
-        oauthClient.environment == 'sandbox'
-            ? OAuthClient.environment.sandbox
-            : OAuthClient.environment.production;
+    try {
+        const url =
+            oauthClient.environment == 'sandbox'
+                ? OAuthClient.environment.sandbox
+                : OAuthClient.environment.production;
 
-    let date = moment(new Date()).subtract(1, 'week').toISOString();
-    let bearer = 'Bearer ' + access_token;
-    let query;
-    if(condition === "week") {
-        query = `select * from Purchase where MetaData.LastUpdatedTime >= '${date}'`;
-    }
-    else if (condition === "all") {
-        query = 'select * from Purchase';
-    }
-
-    // console.log("query of purchase", query);
-    let options = {
-        'method': 'GET',
-        'Accept': 'application/json',
-        'url': `${url}/v3/company/${companyID}/query?query=${query}&minorversion=63`,
-        'headers': {
-            'Authorization': bearer,
+        let date = moment(new Date()).subtract(1, 'week').toISOString();
+        let bearer = 'Bearer ' + access_token;
+        let query;
+        if(condition === "week") {
+            query = `select * from Purchase where MetaData.LastUpdatedTime >= '${date}'`;
         }
-    };
-    // console.log("option:",options);
-    let array = [];
-    // console.log("result","fafa");
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
-                let result = convert.xml2json(body, {compact: true, spaces: 4});
-                // console.log("result",result)
-                resolve(result);
-            } else {
-                // console.log("result",error)
-                reject(error);
+        else if (condition === "all") {
+            query = 'select * from Purchase';
+        }
+
+        let options = {
+            'method': 'GET',
+            'Accept': 'application/json',
+            'headers': {
+                'Authorization': bearer,
             }
+        };
+        return new Promise(function(resolve, reject){
+            request(`${url}v3/company/${companyID}/query?query=${query}&minorversion=63`, options, function (error, response, body) {
+                // in addition to parsing the value, deal with possible errors
+                if (error) return reject(error);
+                try {
+                    let result = convert.xml2json(body, {compact: true, spaces: 4});
+                    resolve(result);
+                } catch(e) {
+                    reject(e);
+                }
+            });
         });
-    });
+    }
+    catch (e) {
+        console.log("getPurchases error",e)
+    }
 }
 async function getBills(access_token, companyID, condition) {
-    const url =
-        oauthClient.environment == 'sandbox'
-            ? OAuthClient.environment.sandbox
-            : OAuthClient.environment.production;
+    try {
+        const url =
+            oauthClient.environment == 'sandbox'
+                ? OAuthClient.environment.sandbox
+                : OAuthClient.environment.production;
 
-    let date = moment(new Date()).subtract(1, 'week').toISOString();
-    let bearer = 'Bearer ' + access_token;
-    let query;
-    if(condition === "week") {
-        query = `select * from bill where MetaData.LastUpdatedTime >= '${date}'`;
-    }
-    else if (condition === "all") {
-        query = 'select * from bill';
-    }
-    // console.log(bearer);
-    let options = {
-        'method': 'GET',
-        'Accept': 'application/json',
-        'url': `${url}/v3/company/${companyID}/query?query=${query}&minorversion=63`,
-        'headers': {
-            'Authorization': bearer,
+        let date = moment(new Date()).subtract(1, 'week').toISOString();
+        let bearer = 'Bearer ' + access_token;
+        let query;
+        if(condition === "week") {
+            query = `select * from bill where MetaData.LastUpdatedTime >= '${date}'`;
         }
-    };
-    // console.log("option:",options);
-    let array = [];
+        else if (condition === "all") {
+            query = 'select * from bill';
+        }
 
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
-                let result = convert.xml2json(body, {compact: true, spaces: 4});
-                // console.log("account result" ,result);
-                resolve(result);
-            } else {
-                reject(error);
+        let options = {
+            'method': 'GET',
+            'Accept': 'application/json',
+            'headers': {
+                'Authorization': bearer,
             }
+        };
+        return new Promise(function(resolve, reject){
+            request(`${url}v3/company/${companyID}/query?query=${query}&minorversion=63`, options, function (error, response, body) {
+                // in addition to parsing the value, deal with possible errors
+                if (error) return reject(error);
+                try {
+                    let result = convert.xml2json(body, {compact: true, spaces: 4});
+                    resolve(result);
+                } catch(e) {
+                    reject(e);
+                }
+            });
         });
-    });
+    }
+    catch (e) {
+        console.log("getBills error",e)
+    }
 }
 async function getCategories(access_token, companyID) {
-    const url =
-        oauthClient.environment == 'sandbox'
-            ? OAuthClient.environment.sandbox
-            : OAuthClient.environment.production;
+    try {
+        const url =
+            oauthClient.environment == 'sandbox'
+                ? OAuthClient.environment.sandbox
+                : OAuthClient.environment.production;
 
-    let bearer = 'Bearer ' + access_token;
-    let query = 'select * from Department WHERE Active IN (true,false)';
-    // console.log(bearer);
-    let options = {
-        'method': 'GET',
-        'Accept': 'application/json',
-        'url': `${url}/v3/company/${companyID}/query?query=${query}&minorversion=63`,
-        'headers': {
-            'Authorization': bearer,
-        }
-    };
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
-                let result = convert.xml2json(body, {compact: true, spaces: 4});
-                console.log("Departments",result)
-                resolve(result);
-            } else {
-                console.log("result",error)
-                reject(error);
+        let bearer = 'Bearer ' + access_token;
+        let query = 'select * from Department WHERE Active IN (true,false)';
+        let options = {
+            'method': 'GET',
+            'Accept': 'application/json',
+            'headers': {
+                'Authorization': bearer,
             }
+        };
+        return new Promise(function(resolve, reject){
+            request(`${url}v3/company/${companyID}/query?query=${query}&minorversion=63`, options, function (error, response, body) {
+                // in addition to parsing the value, deal with possible errors
+                if (error) return reject(error);
+                try {
+                    let result = convert.xml2json(body, {compact: true, spaces: 4});
+                    resolve(result);
+                } catch(e) {
+                    reject(e);
+                }
+            });
         });
-    });
+    }
+    catch (e) {
+        console.log("getCategories error",e)
+    }
 }
 async function getClasses(access_token, companyID) {
-    const url =
-        oauthClient.environment == 'sandbox'
-            ? OAuthClient.environment.sandbox
-            : OAuthClient.environment.production;
+    try {
+        const url =
+            oauthClient.environment == 'sandbox'
+                ? OAuthClient.environment.sandbox
+                : OAuthClient.environment.production;
 
-    let bearer = 'Bearer ' + access_token;
-    let query = 'select  * from Class WHERE Active IN (true,false)';
-    // console.log(bearer);
-    let options = {
-        'method': 'GET',
-        'Accept': 'application/json',
-        'url': `${url}/v3/company/${companyID}/query?query=${query}&minorversion=63`,
-        'headers': {
-            'Authorization': bearer,
-        }
-    };
-    // console.log("option:",options);
-    let array = [];
-    // console.log("result","fafa");
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
-                let result = convert.xml2json(body, {compact: true, spaces: 4});
-                // console.log("Departments",result)
-                resolve(result);
-            } else {
-                // console.log("result",error)
-                reject(error);
+        let bearer = 'Bearer ' + access_token;
+        let query = 'select  * from Class WHERE Active IN (true,false)';
+        let options = {
+            'method': 'GET',
+            'Accept': 'application/json',
+            'headers': {
+                'Authorization': bearer,
             }
+        };
+        return new Promise(function(resolve, reject){
+            request(`${url}v3/company/${companyID}/query?query=${query}&minorversion=63`, options, function (error, response, body) {
+                // in addition to parsing the value, deal with possible errors
+                if (error) return reject(error);
+                try {
+                    let result = convert.xml2json(body, {compact: true, spaces: 4});
+                    resolve(result);
+                } catch(e) {
+                    reject(e);
+                }
+            });
         });
-    });
+    }
+    catch (e) {
+        console.log("getClasses error",e)
+    }
 }
 async function getSuppliers(access_token, companyID, condition) {
-    const url =
-        oauthClient.environment == 'sandbox'
-            ? OAuthClient.environment.sandbox
-            : OAuthClient.environment.production;
+    try {
+        const url =
+            oauthClient.environment == 'sandbox'
+                ? OAuthClient.environment.sandbox
+                : OAuthClient.environment.production;
 
-    let bearer = 'Bearer ' + access_token;
-
-    let query;
-    if(condition === "today") {
-        query = `select * from vendor WHERE Active IN (true,false) and MetaData.LastUpdatedTime >= '${new Date().toISOString()}'`;
-    }
-    else if (condition === "all") {
-        query = 'select * from vendor WHERE Active IN (true,false)';
-    }
-
-    // let query = 'select * from vendor WHERE Active IN (true,false)';
-    console.log("query", query);
-    let options = {
-        'method': 'GET',
-        'Accept': 'application/json',
-        'url': `${url}/v3/company/${companyID}/query?query=${query}&minorversion=63`,
-        'headers': {
-            'Authorization': bearer,
+        let bearer = 'Bearer ' + access_token;
+        let query;
+        if(condition === "today") {
+            query = `select * from vendor WHERE Active IN (true,false) and MetaData.LastUpdatedTime >= '${new Date().toISOString()}'`;
         }
-    };
-    // console.log("option:",options);
-    let array = [];
-    // console.log("result","fafa");
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
-                let result = convert.xml2json(body, {compact: true, spaces: 4});
-                // console.log("Departments",result)
-                resolve(result);
-            } else {
-                // console.log("result",error)
-                reject(error);
+        else if (condition === "all") {
+            query = 'select * from vendor WHERE Active IN (true,false)';
+        }
+        let options = {
+            'method': 'GET',
+            'Accept': 'application/json',
+            'headers': {
+                'Authorization': bearer,
             }
+        };
+        return new Promise(function(resolve, reject){
+            request(`${url}v3/company/${companyID}/query?query=${query}&minorversion=63`, options, function (error, response, body) {
+                // in addition to parsing the value, deal with possible errors
+                if (error) return reject(error);
+                try {
+                    let result = convert.xml2json(body, {compact: true, spaces: 4});
+                    resolve(result);
+                } catch(e) {
+                    reject(e);
+                }
+            });
         });
-    });
+    }
+    catch (e) {
+        console.log("getSuppliers error",e)
+    }
 }
 async function getAttachables(access_token, companyID, expense_id) {
     const url =
@@ -441,61 +444,70 @@ async function getAttachables(access_token, companyID, expense_id) {
     });
 }
 async function getAllAttachables(access_token,companyID) {
-    const url =
-        oauthClient.environment == 'sandbox'
-            ? OAuthClient.environment.sandbox
-            : OAuthClient.environment.production;
+    try {
+        const url =
+            oauthClient.environment == 'sandbox'
+                ? OAuthClient.environment.sandbox
+                : OAuthClient.environment.production;
 
-    let bearer = 'Bearer ' + access_token;
-    let query = 'select * from attachable';
-    // console.log(bearer);
-    let options = {
-        'method': 'GET',
-        'Accept': 'application/json',
-        'url': `${url}/v3/company/${companyID}/query?query=${query}&minorversion=63`,
-        'headers': {
-            'Authorization': bearer,
-        }
-    };
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
-                let result = convert.xml2json(body, {compact: true, spaces: 4});
-                resolve(result);
-            } else {
-                reject(error);
+        let bearer = 'Bearer ' + access_token;
+        let query = 'select * from attachable';
+        let options = {
+            'method': 'GET',
+            'Accept': 'application/json',
+            'headers': {
+                'Authorization': bearer,
             }
+        };
+        return new Promise(function(resolve, reject){
+            request(`${url}v3/company/${companyID}/query?query=${query}&minorversion=63`, options, function (error, response, body) {
+                // in addition to parsing the value, deal with possible errors
+                if (error) return reject(error);
+                try {
+                    let result = convert.xml2json(body, {compact: true, spaces: 4});
+                    resolve(result);
+                } catch(e) {
+                    reject(e);
+                }
+            });
         });
-    });
+    }
+    catch (e) {
+        console.log("getAllAttachables error",e)
+    }
 }
 async function getAllAttachableImage(access_token,companyID,attachment_id) {
-    const url =
-        oauthClient.environment == 'sandbox'
-            ? OAuthClient.environment.sandbox
-            : OAuthClient.environment.production;
+    try {
+        const url =
+            oauthClient.environment == 'sandbox'
+                ? OAuthClient.environment.sandbox
+                : OAuthClient.environment.production;
 
-    let bearer = 'Bearer ' + access_token;
-    let query = `select TempDownloadUri from attachable where Id = '${attachment_id}'`;
-    // console.log(bearer);
-    let options = {
-        'method': 'GET',
-        'Accept': 'application/json',
-        'url': `${url}/v3/company/${companyID}/query?query=${query}&minorversion=63`,
-        'headers': {
-            'Authorization': bearer,
-        }
-    };
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
-                let result = convert.xml2json(body, {compact: true, spaces: 4});
-                resolve(result);
-            } else {
-                console.log("error in request", error)
-                reject(error);
+        let bearer = 'Bearer ' + access_token;
+        let query = `select TempDownloadUri from attachable where Id = '${attachment_id}'`;
+        let options = {
+            'method': 'GET',
+            'Accept': 'application/json',
+            'headers': {
+                'Authorization': bearer,
             }
+        };
+        return new Promise(function(resolve, reject){
+            request(`${url}v3/company/${companyID}/query?query=${query}&minorversion=63`, options, function (error, response, body) {
+                // in addition to parsing the value, deal with possible errors
+                if (error) return reject(error);
+                try {
+                    let result = convert.xml2json(body, {compact: true, spaces: 4});
+                    resolve(result);
+                } catch(e) {
+                    reject(e);
+                }
+            });
         });
-    });
+    }
+    catch (e) {
+        console.log("getAllAttachableImage error",e)
+    }
 }
 
 //Syncing functions
@@ -979,7 +991,7 @@ async function refreshToken(company_id) {
                 let expire_at = time.toString().substring(0,10);
                 console.log("here");
                 // const updateRefreshTokenResult = await updateRefreshToken(email, qb_access_token, qb_refresh_token, expire_at);
-                const updateCompanyTokenResult = await updateQuickbooksCompanyToken(company[0].tenant_id, qb_access_token, qb_refresh_token, expire_at);
+                const updateCompanyTokenResult = await updateQuickbooksCompanyToken(company[0].tenant_id, qb_access_token, qb_refresh_token, expire_at, qb_expire_at);
                 console.log("updateCompanyTokenResult",updateCompanyTokenResult);
 
                 tokenSet = {
@@ -1137,7 +1149,10 @@ module.exports = {
                     console.log("user email", email)
                     let isEmailSend = false;
 
-
+                    let now = new Date();
+                    let time = now.getTime();
+                    time += 3600 * 1000;
+                    let expire_at = time.toString().substring(0,10);
 
                     // const checkCompanyExistResult = await checkCompanyExist(decodedIdToken.realmid);
                     // const getCompanyByTenantIdResult = await getCompanyByTenant(decodedIdToken.realmid);
@@ -1165,7 +1180,7 @@ module.exports = {
                             console.log("updating email");
                             const updateXeroAccountEmailResult = await updateAccountEmail(getUserData[0].id, email);
                             console.log("updating qb tokens")
-                            const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_access_token, qb_refresh_token, qb_expire_at);
+                            const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_access_token, qb_refresh_token, expire_at, qb_expire_at);
 
                             const updateLoginTokenResult = await updateLoginToken(getUserData[0].id, token, null, null, null, null, 1);
                             let user_id = getUserData[0].id;
@@ -1180,7 +1195,13 @@ module.exports = {
                             return res.redirect(`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token);
                         }
                         else {
-                            return res.redirect(`${process.env.APP_URL}login/error/404`);
+                            const getUserData = await getUserByEmail(email);
+                            if(getUserData[0].role_id === 1 && getUserData[0].user_type === "quickbooks" && getUserData[0].status === 0) {
+                                return res.redirect(`${process.env.APP_URL}login/error/1003`);
+                            }
+                            else {
+                                return res.redirect(`${process.env.APP_URL}login/error/404`);
+                            }
                         }
                     }
                     else if(request_type === "sign-up" || request_type === "connect") {
@@ -1223,30 +1244,58 @@ module.exports = {
                                     const createUserRoleResult = await createUserRole(user_id, createCompanyResult.insertId, null, 1, null);
                                     console.log("role created company id",createCompanyResult.insertId,"user id",user_id);
                                     const updateQbAccountEmailResult = await updateAccountEmail(user_id, email);
-                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_access_token, qb_refresh_token, qb_expire_at);
+                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_access_token, qb_refresh_token, expire_at, qb_expire_at);
                                     const updateLoginTokenResult = await updateLoginToken(user_id, token, null, null, null, null, 1);
 
-                                    let accounts = await getAccounts(qb_access_token, decodedIdToken.realmid);
 
-                                    let purchases = await getPurchases(qb_access_token, decodedIdToken.realmid, "all");
-                                    let bills = await getBills(qb_access_token, decodedIdToken.realmid, "all");
-                                    let attachables = await getAllAttachables(qb_access_token, decodedIdToken.realmid);
+                                    let accountArray = null;
+                                    let purchaseArray = null;
+                                    let billArray = null;
+                                    let attachableArray = null;
+                                    let categoryArray = null;
+                                    let classArray = null;
+                                    let supplierArray = null;
 
-                                    let categories = await getCategories(qb_access_token, decodedIdToken.realmid);
-                                    let classes = await getClasses(qb_access_token, decodedIdToken.realmid);
+                                    await getAccounts(qb_access_token, decodedIdToken.realmid).then(function(response) {
+                                        accountArray = JSON.parse(response).IntuitResponse.QueryResponse.Account;
+                                    }).catch(function(err) {
+                                        accountArray = undefined;
+                                    });
 
-                                    let suppliers = await getSuppliers(qb_access_token, decodedIdToken.realmid, "all");
+                                    await getPurchases(qb_access_token, decodedIdToken.realmid, "all").then(function(response) {
+                                        purchaseArray = JSON.parse(response).IntuitResponse.QueryResponse.Purchase;
+                                    }).catch(function(err) {
+                                        purchaseArray = undefined;
+                                    });
+                                    await getBills(qb_access_token, decodedIdToken.realmid, "all").then(function(response) {
+                                        billArray = JSON.parse(response).IntuitResponse.QueryResponse.Bill;
+                                    }).catch(function(err) {
+                                        billArray = undefined;
+                                    });
+                                    await getAllAttachables(qb_access_token, decodedIdToken.realmid).then(function(response) {
+                                        attachableArray = JSON.parse(response).IntuitResponse.QueryResponse.Attachable;
+                                    }).catch(function(err) {
+                                        attachableArray = undefined;
+                                    });
 
-                                    const accountArray = JSON.parse(accounts).IntuitResponse.QueryResponse.Account;
 
-                                    const purchaseArray = JSON.parse(purchases).IntuitResponse.QueryResponse.Purchase;
-                                    const billArray = JSON.parse(bills).IntuitResponse.QueryResponse.Bill;
-                                    const attachableArray = JSON.parse(attachables).IntuitResponse.QueryResponse.Attachable;
+                                    await getCategories(qb_access_token, decodedIdToken.realmid).then(function(response) {
+                                        categoryArray = JSON.parse(response).IntuitResponse.QueryResponse.Department;
+                                    }).catch(function(err) {
+                                        categoryArray = undefined;
+                                    });
+                                    await getClasses(qb_access_token, decodedIdToken.realmid).then(function(response) {
+                                        classArray = JSON.parse(response).IntuitResponse.QueryResponse.Class;
+                                    }).catch(function(err) {
+                                        classArray = undefined;
+                                    });
 
-                                    const categoryArray = JSON.parse(categories).IntuitResponse.QueryResponse.Department;
-                                    const classArray = JSON.parse(classes).IntuitResponse.QueryResponse.Class;
 
-                                    const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
+                                    await getSuppliers(qb_access_token, decodedIdToken.realmid, "all").then(function(response) {
+                                        supplierArray = JSON.parse(response).IntuitResponse.QueryResponse.Vendor;
+                                    }).catch(function(err) {
+                                        supplierArray = undefined;
+                                    });
 
 
                                     await syncCategories(user_id, company_id, categoryArray).then(async () => {
@@ -1316,7 +1365,7 @@ module.exports = {
                                     const getUserData = await getUserByEmail(email);
                                     const user_id = getUserData[0].id;
                                     const updateLoginTokenResult = await updateLoginToken(user_id, token, null, null, null, null, 1);
-                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_access_token, qb_refresh_token, qb_expire_at);
+                                    const updateQuickbooksCompanyTokenResult = await updateQuickbooksCompanyToken(decodedIdToken.realmid, qb_access_token, qb_refresh_token, expire_at, qb_expire_at);
                                     console.log("redirecting to",`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token)
                                     return res.redirect(`${process.env.APP_URL}auth/login/quickbooks/` + encodeURIComponent(email) + `/` + token);
                                 }
@@ -1571,7 +1620,7 @@ module.exports = {
                 access_token: company[0].access_token,
                 expires_in: company[0].expire_at,
                 refresh_token: company[0].refresh_token,
-                x_refresh_token_expires_in: company[0].expire_at,
+                x_refresh_token_expires_in: company[0].x_refresh_token_expires_in,
                 realmId: company[0].tenant_id,
                 id_token: company[0].id_token
             });
@@ -1580,10 +1629,8 @@ module.exports = {
             let uc_length = null;
             let uc_active_company = null;
 
-
             await oauthClient.revoke({'access_token': company[0].access_token, 'refresh_token': company[0].refresh_token}).then(async (res) => {
                 console.log('Tokens revoked : ' + res);
-
                 const getSubscriptionResult = await getCompanySubscription(company_id);
                 console.log("getSubscriptionResult",getSubscriptionResult)
                 if(getSubscriptionResult.length > 0) {
@@ -1701,7 +1748,10 @@ module.exports = {
             const company = await getCompanyByID(company_id);
             const user = await getUserById(user_id);
 
+            console.log("user_id", user_id);
+            console.log("company_id", company_id);
             console.log("token", token);
+            console.log("company", company);
 
             let access_token = company[0].access_token;
             let tenant_id = company[0].tenant_id;
@@ -1709,28 +1759,54 @@ module.exports = {
             console.log("access_token", access_token);
             console.log("tenant_id", tenant_id);
 
-            let accounts = await getAccounts(access_token, tenant_id);
+            let accountArray = null;
+            let purchaseArray = null;
+            let billArray = null;
+            let attachableArray = null;
+            let categoryArray = null;
+            let classArray = null;
+            let supplierArray = null;
 
-            let purchases = await getPurchases(access_token, tenant_id, "week");
-            let bills = await getBills(access_token, tenant_id, "week");
-            let attachables = await getAllAttachables(access_token, tenant_id);
+            await getAccounts(access_token, tenant_id).then(function(response) {
+                accountArray = JSON.parse(response).IntuitResponse.QueryResponse.Account;
+            }).catch(function(err) {
+                accountArray = undefined;
+            });
 
-            let categories = await getCategories(access_token, tenant_id);
-            let classes = await getClasses(access_token, tenant_id);
+            await getPurchases(access_token, tenant_id, "week").then(function(response) {
+                purchaseArray = JSON.parse(response).IntuitResponse.QueryResponse.Purchase;
+            }).catch(function(err) {
+                purchaseArray = undefined;
+            });
+            await getBills(access_token, tenant_id, "week").then(function(response) {
+                billArray = JSON.parse(response).IntuitResponse.QueryResponse.Bill;
+            }).catch(function(err) {
+                billArray = undefined;
+            });
+            await getAllAttachables(access_token, tenant_id).then(function(response) {
+                attachableArray = JSON.parse(response).IntuitResponse.QueryResponse.Attachable;
+            }).catch(function(err) {
+                attachableArray = undefined;
+            });
 
-            let suppliers = await getSuppliers(access_token, tenant_id, "all");
+
+            await getCategories(access_token, tenant_id).then(function(response) {
+                categoryArray = JSON.parse(response).IntuitResponse.QueryResponse.Department;
+            }).catch(function(err) {
+                categoryArray = undefined;
+            });
+            await getClasses(access_token, tenant_id).then(function(response) {
+                classArray = JSON.parse(response).IntuitResponse.QueryResponse.Class;
+            }).catch(function(err) {
+                classArray = undefined;
+            });
 
 
-            const accountArray = JSON.parse(accounts).IntuitResponse.QueryResponse.Account;
-
-            const purchaseArray = JSON.parse(purchases).IntuitResponse.QueryResponse.Purchase;
-            const billArray = JSON.parse(bills).IntuitResponse.QueryResponse.Bill;
-            const attachableArray = JSON.parse(attachables).IntuitResponse.QueryResponse.Attachable;
-
-            const categoryArray = JSON.parse(categories).IntuitResponse.QueryResponse.Department;
-            const classArray = JSON.parse(classes).IntuitResponse.QueryResponse.Class;
-
-            const supplierArray = JSON.parse(suppliers).IntuitResponse.QueryResponse.Vendor;
+            await getSuppliers(access_token, tenant_id, "week").then(function(response) {
+                supplierArray = JSON.parse(response).IntuitResponse.QueryResponse.Vendor;
+            }).catch(function(err) {
+                supplierArray = undefined;
+            });
 
             await syncCategories(user_id, company_id, categoryArray).then(async () => {
                 await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
