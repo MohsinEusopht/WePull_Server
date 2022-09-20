@@ -103,23 +103,29 @@ function isEmptyObject(obj) {
 
 //Fetching functions
 async function getUser(access_token){
+    const url =
+        oauthClient.environment == 'sandbox'
+            ? OAuthClient.environment.sandbox
+            : OAuthClient.environment.production;
+
     let bearer = 'Bearer ' + access_token;
     // console.log(bearer);
     let options = {
         'method': 'GET',
-        'url': "https://sandbox-accounts.platform.intuit.com/v1/openid_connect/userinfo",
         'headers': {
             'Authorization': bearer,
         }
     };
 
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
-                // console.log("response:", res);
+    return new Promise(function(resolve, reject){
+        request(`https://sandbox-accounts.platform.intuit.com/v1/openid_connect/userinfo`, options, function (error, response, body) {
+            // in addition to parsing the value, deal with possible errors
+            if (error) return reject(error);
+            try {
+                // let result = convert.xml2json(body, {compact: true, spaces: 4});
                 resolve(body);
-            } else {
-                reject(error);
+            } catch(e) {
+                reject(e);
             }
         });
     });
@@ -135,7 +141,6 @@ async function getCompany(access_token, companyID) {
     let options = {
         'method': 'GET',
         'Accept': 'application/json',
-        'url': `${url}v3/company/${companyID}/companyinfo/${companyID}`,
         'headers': {
             'Authorization': bearer,
         }
@@ -143,18 +148,18 @@ async function getCompany(access_token, companyID) {
     // console.log("option:",options);
     let array = [];
 
-    return new Promise(function (resolve, reject) {
-        request(options, function (error, res, body) {
-            if (!error && res.statusCode == 200) {
+    return new Promise(function(resolve, reject){
+        request(`${url}v3/company/${companyID}/companyinfo/${companyID}`, options, function (error, response, body) {
+            // in addition to parsing the value, deal with possible errors
+            if (error) return reject(error);
+            try {
                 let result = convert.xml2json(body, {compact: true, spaces: 4});
-                //console.log(result);
                 resolve(result);
-            } else {
-                reject(error);
+            } catch(e) {
+                reject(e);
             }
         });
     });
-
 }
 async function revoke_token(access_token) {
     const url =
@@ -513,7 +518,7 @@ async function getAllAttachableImage(access_token,companyID,attachment_id) {
 //Syncing functions
 async function syncAccounts(user_id, company_id, accounts) {
     try {
-        if(isEmptyObject(accounts) || accounts === undefined || accounts.length > 0) {
+        if(isEmptyObject(accounts) || accounts === undefined || accounts.length === 0) {
             console.log("accounts is null");
         }
         else {
@@ -542,11 +547,12 @@ async function syncAccounts(user_id, company_id, accounts) {
 
 async function syncCategories(user_id, company_id, categories) {
     try {
-        // console.log("syncCategories",categories[1])
-        if(isEmptyObject(categories) || categories === undefined || categories.length > 0) {
+        console.log("syncCategories")
+        if(isEmptyObject(categories) || categories === undefined || categories.length === 0) {
             console.log("categories is null");
         }
         else {
+            console.log("syncCategories is not null")
             if(categories.length > 1) {
                 for (const Category of categories) {
                     const checkCategoryResult = await checkCategory(Category.Id._text, company_id);
@@ -1121,24 +1127,23 @@ module.exports = {
 
                     console.log("decodedIdToken",decodedIdToken);
 
-                    let user = await getUser(qb_access_token);
-                    let company = await getCompany(qb_access_token, decodedIdToken.realmid);
 
-                    let userArray = [];
-                    let companyArray = [];
+                    let userArray = null;
+                    let companyArray = null;
 
-                    let accountArray = [];
+                    await getUser(qb_access_token).then((response)=>{
+                        userArray = JSON.parse(response);
+                    }).catch((e) => {
+                        userArray = null;
+                        console.log("getUser err",e);
+                    });
 
-                    let purchaseArray = [];
-                    let billArray = [];
-
-                    let categoryArray = [];
-                    let classArray = [];
-
-                    let supplierArray = [];
-
-                    userArray = JSON.parse(user);
-                    companyArray = JSON.parse(company).IntuitResponse.CompanyInfo;
+                    await getCompany(qb_access_token, decodedIdToken.realmid).then((response)=>{
+                        companyArray = JSON.parse(response).IntuitResponse.CompanyInfo;
+                    }).catch((e) => {
+                        companyArray = null;
+                        console.log("getUser err",e);
+                    });
 
                     let email = userArray.email;
                     let first_name = userArray.givenName;
@@ -1283,6 +1288,7 @@ module.exports = {
                                         categoryArray = JSON.parse(response).IntuitResponse.QueryResponse.Department;
                                     }).catch(function(err) {
                                         categoryArray = undefined;
+                                        console.log("categoryArray err",err);
                                     });
                                     await getClasses(qb_access_token, decodedIdToken.realmid).then(function(response) {
                                         classArray = JSON.parse(response).IntuitResponse.QueryResponse.Class;
@@ -1297,6 +1303,7 @@ module.exports = {
                                         supplierArray = undefined;
                                     });
 
+                                    console.log("categoryArray",categoryArray)
 
                                     await syncCategories(user_id, company_id, categoryArray).then(async () => {
                                         await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
@@ -1887,19 +1894,29 @@ module.exports = {
             const company_id = req.params.company_id;
             const user_id = req.params.user_id;
 
-
-
             const token = await refreshToken(company_id);
 
             const company = await getCompanyByID(company_id);
-            let user = await getUser(company[0].access_token);
-            let userArray = JSON.parse(user);
+            let userArray = null;
+
+            await getUser(company[0].access_token).then((response)=>{
+                console.log("getUser res",response);
+                userArray = JSON.parse(response);
+            }).catch((e) => {
+                userArray = null;
+                console.log("getUser err",e);
+            });
+
             let email = userArray.email;
+            let first_name = userArray.givenName;
+            let last_name = userArray.familyName;
+
+            console.log("userArray",userArray)
 
             const checkUserEmailResponse = await checkUserEmail(email);
-
+            const getUserByIDRes = await getUserById(user_id);
             if(getUserByIDRes[0].email === email) {
-                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email, first_name, last_name);
                 console.log("email updated",updateXeroAccountEmailResult);
                 console.log("user", userArray)
 
@@ -1907,12 +1924,12 @@ module.exports = {
                 getUserByIDRes[0].password = undefined;
                 return res.json({
                     status: 200,
-                    message: "Email refreshed successfully",
+                    message: "Account information refreshed successfully",
                     user: getUserByIDRes[0]
                 })
             }
             else if(checkUserEmailResponse[0].user_count === 0) {
-                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email, first_name, last_name);
                 console.log("email updated",updateXeroAccountEmailResult);
                 console.log("user", userArray)
 
@@ -1920,7 +1937,7 @@ module.exports = {
                 getUserByIDRes[0].password = undefined;
                 return res.json({
                     status: 200,
-                    message: "Email refreshed successfully",
+                    message: "Account information refreshed successfully",
                     user: getUserByIDRes[0]
                 })
             }

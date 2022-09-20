@@ -1428,6 +1428,8 @@ module.exports = {
             xero_id_token = array.id_token;
             const jwtTokenDecode = jwt.decode(xero_id_token);
             let email = jwtTokenDecode.email;
+            let first_name = jwtTokenDecode.given_name;
+            let last_name = jwtTokenDecode.family_name;
             console.log("email", email);
 
             const checkUserEmailResponse = await checkUserEmail(email);
@@ -1435,22 +1437,22 @@ module.exports = {
             console.log("user_id",user_id);
             console.log("checkUserEmailResponse",checkUserEmailResponse);
             if(getUser[0].email === email) {
-                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email, first_name, last_name);
                 console.log("updateXeroAccountEmailResult");
                 getUser[0].password = undefined;
                 return res.json({
                     status: 200,
-                    message: "Email refreshed successfully",
+                    message: "Account information refreshed successfully",
                     user: getUser[0]
                 })
             }
             else if (checkUserEmailResponse[0].user_count === 0) {
-                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email);
+                const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email, first_name, last_name);
                 console.log("updateXeroAccountEmailResult");
                 getUser[0].password = undefined;
                 return res.json({
                     status: 200,
-                    message: "Email refreshed successfully",
+                    message: "Account information refreshed successfully",
                     user: getUser[0]
                 })
             }

@@ -316,10 +316,10 @@ module.exports = {
             );
         })
     },
-    updateAccountEmail: (id, email) => {
+    updateAccountEmail: (id, email, first_name, last_name) => {
         return new Promise((resolve, reject) => {
             pool.query(
-                `UPDATE users SET email = ? WHERE id = ?`, [email, id],
+                `UPDATE users SET first_name = ?, last_name = ?,email = ? WHERE id = ?`, [first_name, last_name, email, id],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
