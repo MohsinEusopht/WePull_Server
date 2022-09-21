@@ -973,6 +973,10 @@ module.exports = {
                                         isEmailSend = true;
                                         console.log("redirecting to ",`${process.env.APP_URL}auth/sign-up/xero/` + encodeURIComponent(email) + `/` + token);
                                         return res.redirect(`${process.env.APP_URL}auth/sign-up/xero/` + encodeURIComponent(email) + `/` + token);
+                                    }).catch((e) => {
+                                        console.log("email error",e);
+                                        console.log("redirecting to ",`${process.env.APP_URL}auth/sign-up/xero/` + encodeURIComponent(email) + `/` + token);
+                                        return res.redirect(`${process.env.APP_URL}auth/sign-up/xero/` + encodeURIComponent(email) + `/` + token);
                                     });
                                 }
                             }
@@ -1431,6 +1435,9 @@ module.exports = {
             let first_name = jwtTokenDecode.given_name;
             let last_name = jwtTokenDecode.family_name;
             console.log("email", email);
+            console.log("jwtTokenDecode", jwtTokenDecode);
+            console.log("first_name", first_name);
+            console.log("last_name", last_name);
 
             const checkUserEmailResponse = await checkUserEmail(email);
 
@@ -1438,7 +1445,8 @@ module.exports = {
             console.log("checkUserEmailResponse",checkUserEmailResponse);
             if(getUser[0].email === email) {
                 const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email, first_name, last_name);
-                console.log("updateXeroAccountEmailResult");
+                const getUser = await getUserById(user_id);
+                console.log("updateXeroAccountEmailResult 1");
                 getUser[0].password = undefined;
                 return res.json({
                     status: 200,
@@ -1448,7 +1456,8 @@ module.exports = {
             }
             else if (checkUserEmailResponse[0].user_count === 0) {
                 const updateXeroAccountEmailResult = await updateAccountEmail(user_id, email, first_name, last_name);
-                console.log("updateXeroAccountEmailResult");
+                console.log("updateXeroAccountEmailResult 2");
+                const getUser = await getUserById(user_id);
                 getUser[0].password = undefined;
                 return res.json({
                     status: 200,

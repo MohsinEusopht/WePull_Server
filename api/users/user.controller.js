@@ -278,10 +278,10 @@ module.exports = {
 
                     return res.json({
                         status: 200,
-                        message: "login successfully",
+                        message: "Sign in successfully",
                         token: json_token,
                         data: user[0],
-                        type: "xero",
+                        type: user[0].user_type,
                         company_data: getCompany[0]
                     });
                 } else {
