@@ -956,7 +956,7 @@ module.exports = {
                                     secure: true, // use SSL
                                     auth: {
                                         user: "no-reply@wepull.io",
-                                        pass: "hpnxtbitpndrxbfv"
+                                        pass: "xkdhvivhhkewtawu"
                                     },
                                     debug: true, // show debug output
                                     logger: true
