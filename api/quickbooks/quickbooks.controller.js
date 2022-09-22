@@ -28,6 +28,7 @@ const {
     updateAccountEmail,
     checkUserCompanyByTenant,
     createCompany,
+    updateCompany,
     createUserRole,
     updateQuickbooksCompanyToken,
     checkAccount,
@@ -245,6 +246,8 @@ async function getPurchases(access_token, companyID, condition) {
             query = 'select * from Purchase';
         }
 
+        console.log("expense query", query)
+
         let options = {
             'method': 'GET',
             'Accept': 'application/json',
@@ -255,11 +258,18 @@ async function getPurchases(access_token, companyID, condition) {
         return new Promise(function(resolve, reject){
             request(`${url}v3/company/${companyID}/query?query=${query}&minorversion=63`, options, function (error, response, body) {
                 // in addition to parsing the value, deal with possible errors
-                if (error) return reject(error);
+
+                if (error) {
+                    console.log("purchasee error top",error);
+                    return reject(error);
+                }
+
                 try {
                     let result = convert.xml2json(body, {compact: true, spaces: 4});
+                    console.log("purchasee result",result);
                     resolve(result);
                 } catch(e) {
+                    console.log("purchasee error",e);
                     reject(e);
                 }
             });
@@ -772,7 +782,9 @@ async function syncPurchases(user_id, company_id, purchases) {
                         }
 
                         const checkExpenseResult = await checkExpense(Expense.Id._text, i,company_id);
+                        console.log("checkExpenseResult of expense",Expense.Id._text,"response", checkExpenseResult[0]);
                         if(checkExpenseResult[0].expense_count === 0) {
+                            console.log("Expense Added");
                             await addExpense(
                                 Expense.Id._text,
                                 i,
@@ -797,6 +809,7 @@ async function syncPurchases(user_id, company_id, purchases) {
                                 user_id);
                             }
                             else {
+                            console.log("Expense Updated");
                                 await updateExpense(
                                     Expense.Id._text,
                                     i,
@@ -853,8 +866,10 @@ async function syncPurchases(user_id, company_id, purchases) {
                         category2 = getClassByCategoryID ? getClassByCategoryID[0].id : null;
                     }
 
-                    const checkExpenseResult = await checkExpense(Expense.Id._text, 0,company_id);
+                    const checkExpenseResult = await checkExpense(Expense.Id._text, 0,company_id)
+                    console.log("undefined checkExpenseResult of expense",Expense.Id._text,"response", checkExpenseResult[0]);
                     if(checkExpenseResult[0].expense_count === 0) {
+                        console.log("Expense Added undefined");
                         await addExpense(
                             Expense.Id._text,
                             0,
@@ -879,6 +894,7 @@ async function syncPurchases(user_id, company_id, purchases) {
                             user_id);
                     }
                     else {
+                        console.log("Expense updated undefined");
                         await updateExpense(
                             Expense.Id._text,
                             0,
@@ -1190,6 +1206,13 @@ module.exports = {
                             const updateLoginTokenResult = await updateLoginToken(getUserData[0].id, token, null, null, null, null, 1);
                             let user_id = getUserData[0].id;
 
+                            console.log("Companyyyyyyyyyyyyy",companyArray);
+                            let NameValue = companyArray.NameValue;
+
+                            let IndustryType = NameValue.filter(el => el.Name._text === 'IndustryType');
+                            let CompanyType = NameValue.filter(el => el.Name._text === 'CompanyType');
+                            const createCompanyResult = await updateCompany(decodedIdToken.realmid, companyArray.CompanyName._text, CompanyType[0]!=undefined||null?CompanyType[0].Value._text:null, IndustryType[0]!=undefined||null?IndustryType[0].Value._text:null);
+
                             // Disable all companies in xero and then enable current selected one.
                             const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
                             const disableAllCompanyResult = await disableAllCompany(user_id);
@@ -1267,23 +1290,6 @@ module.exports = {
                                         accountArray = undefined;
                                     });
 
-                                    await getPurchases(qb_access_token, decodedIdToken.realmid, "all").then(function(response) {
-                                        purchaseArray = JSON.parse(response).IntuitResponse.QueryResponse.Purchase;
-                                    }).catch(function(err) {
-                                        purchaseArray = undefined;
-                                    });
-                                    await getBills(qb_access_token, decodedIdToken.realmid, "all").then(function(response) {
-                                        billArray = JSON.parse(response).IntuitResponse.QueryResponse.Bill;
-                                    }).catch(function(err) {
-                                        billArray = undefined;
-                                    });
-                                    await getAllAttachables(qb_access_token, decodedIdToken.realmid).then(function(response) {
-                                        attachableArray = JSON.parse(response).IntuitResponse.QueryResponse.Attachable;
-                                    }).catch(function(err) {
-                                        attachableArray = undefined;
-                                    });
-
-
                                     await getCategories(qb_access_token, decodedIdToken.realmid).then(function(response) {
                                         categoryArray = JSON.parse(response).IntuitResponse.QueryResponse.Department;
                                     }).catch(function(err) {
@@ -1302,6 +1308,24 @@ module.exports = {
                                     }).catch(function(err) {
                                         supplierArray = undefined;
                                     });
+
+                                    await getPurchases(qb_access_token, decodedIdToken.realmid, "all").then(function(response) {
+                                        purchaseArray = JSON.parse(response).IntuitResponse.QueryResponse.Purchase;
+                                    }).catch(function(err) {
+                                        purchaseArray = undefined;
+                                    });
+                                    await getBills(qb_access_token, decodedIdToken.realmid, "all").then(function(response) {
+                                        billArray = JSON.parse(response).IntuitResponse.QueryResponse.Bill;
+                                    }).catch(function(err) {
+                                        billArray = undefined;
+                                    });
+                                    await getAllAttachables(qb_access_token, decodedIdToken.realmid).then(function(response) {
+                                        attachableArray = JSON.parse(response).IntuitResponse.QueryResponse.Attachable;
+                                    }).catch(function(err) {
+                                        attachableArray = undefined;
+                                    });
+
+
 
                                     console.log("categoryArray",categoryArray)
 
@@ -1324,11 +1348,10 @@ module.exports = {
                                         });
                                     });
 
-                                    const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
-                                    const disableAllCompanyResult = await disableAllCompany(user_id);
-                                    const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
-
                                     if(request_type === 'sign-up') {
+                                        const getCompanyByTenantResult = await getCompanyByTenant(decodedIdToken.realmid);
+                                        const disableAllCompanyResult = await disableAllCompany(user_id);
+                                        const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
                                         console.log("sending email....");
                                         let transporter = await nodeMailer.createTransport({
                                             host: "smtp.gmail.com",
@@ -1780,23 +1803,6 @@ module.exports = {
                 accountArray = undefined;
             });
 
-            await getPurchases(access_token, tenant_id, "week").then(function(response) {
-                purchaseArray = JSON.parse(response).IntuitResponse.QueryResponse.Purchase;
-            }).catch(function(err) {
-                purchaseArray = undefined;
-            });
-            await getBills(access_token, tenant_id, "week").then(function(response) {
-                billArray = JSON.parse(response).IntuitResponse.QueryResponse.Bill;
-            }).catch(function(err) {
-                billArray = undefined;
-            });
-            await getAllAttachables(access_token, tenant_id).then(function(response) {
-                attachableArray = JSON.parse(response).IntuitResponse.QueryResponse.Attachable;
-            }).catch(function(err) {
-                attachableArray = undefined;
-            });
-
-
             await getCategories(access_token, tenant_id).then(function(response) {
                 categoryArray = JSON.parse(response).IntuitResponse.QueryResponse.Department;
             }).catch(function(err) {
@@ -1814,6 +1820,25 @@ module.exports = {
             }).catch(function(err) {
                 supplierArray = undefined;
             });
+
+            await getPurchases(access_token, tenant_id, "all").then(function(response) {
+                console.log("getPurchases", JSON.parse(response).IntuitResponse.QueryResponse.Purchase);
+                purchaseArray = JSON.parse(response).IntuitResponse.QueryResponse.Purchase;
+            }).catch(function(err) {
+                purchaseArray = undefined;
+            });
+            await getBills(access_token, tenant_id, "week").then(function(response) {
+                billArray = JSON.parse(response).IntuitResponse.QueryResponse.Bill;
+            }).catch(function(err) {
+                billArray = undefined;
+            });
+            await getAllAttachables(access_token, tenant_id).then(function(response) {
+                attachableArray = JSON.parse(response).IntuitResponse.QueryResponse.Attachable;
+            }).catch(function(err) {
+                attachableArray = undefined;
+            });
+
+
 
             await syncCategories(user_id, company_id, categoryArray).then(async () => {
                 await storeActivity("Categories Synced", "-", "Category", company_id, user_id);
@@ -1840,9 +1865,10 @@ module.exports = {
             });
         }
         catch (e) {
+            console.log("sync error", e);
             return res.json({
                 status: 500,
-                message: "Error :" + e,
+                message: "Something went wrong, Please try again",
             });
         }
     },
@@ -1871,7 +1897,6 @@ module.exports = {
             const image = await getAllAttachableImage(company[0].access_token,company[0].tenant_id, attachment_id);
             const imageArray = JSON.parse(image).IntuitResponse.QueryResponse.Attachable;
             console.log("image",imageArray);
-
 
             // console.log("oauthClient",oauthClient.getToken().getToken());
 

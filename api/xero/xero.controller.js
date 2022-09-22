@@ -775,6 +775,9 @@ module.exports = {
                             }
                             const updateLoginTokenResult = await updateLoginToken(getUserData[0].id, token, xero_id_token, xero_access_token, xero_refresh_token, xero_expire_at, 1);
                             let user_id = getUserData[0].id;
+
+
+
                             // Disable all companies in xero and then enable current selected one.
                             const getCompanyByTenantResult = await getCompanyByTenant(tenantArray[0].tenantId);
                             const disableAllCompanyResult = await disableAllCompany(user_id);
@@ -937,16 +940,15 @@ module.exports = {
                             }
                             //update login token to login or connect and then activate first tenant of user
 
-                            const getCompanyByTenantResult = await getCompanyByTenant(tenantArray[0].tenantId);
-                            const disableAllCompanyResult = await disableAllCompany(user_id);
-                            const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
-
                             if(isCompanyFound) {
                                 // redirect as login if user's any company found
                                 console.log(`${process.env.APP_URL}auth/login/xero/` + encodeURIComponent(email) + `/` + token);
                                 return res.redirect(`${process.env.APP_URL}auth/login/xero/` + encodeURIComponent(email) + `/` + token);
                             }
                             else {
+                                const getCompanyByTenantResult = await getCompanyByTenant(tenantArray[0].tenantId);
+                                const disableAllCompanyResult = await disableAllCompany(user_id);
+                                const activateCompanyResult = await activateCompany(getCompanyByTenantResult[0].id);
                                 console.log("sending email....");
                                 let transporter = await nodeMailer.createTransport({
                                     host: "smtp.gmail.com",

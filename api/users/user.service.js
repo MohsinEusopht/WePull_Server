@@ -196,6 +196,7 @@ module.exports = {
         })
     },
     getExpenses: (company_id) => {
+        console.log(`SELECT e.expense_id,e.expense_date,e.description,e.total_amount,e.is_paid,e.tax,e.paid_amount,e.payment_date,a.name as 'account_name',s.name as 'supplier_name',cat1.category_name as 'category_1',cat2.category_name as 'category_2',e.attachments FROM expenses e LEFT JOIN accounts a ON a.id = e.account_id LEFT JOIN suppliers s ON s.id = e.supplier_id LEFT JOIN categories cat1 ON cat1.id = e.category1_id LEFT JOIN categories cat2 ON cat2.id = e.category2_id WHERE e.company_id = ${company_id}`)
         return new Promise((resolve, reject) => {
             pool.query(
                 `SELECT e.expense_id,e.expense_date,e.description,e.total_amount,e.is_paid,e.tax,e.paid_amount,e.payment_date,a.name as 'account_name',s.name as 'supplier_name',cat1.category_name as 'category_1',cat2.category_name as 'category_2',e.attachments FROM expenses e LEFT JOIN accounts a ON a.id = e.account_id LEFT JOIN suppliers s ON s.id = e.supplier_id LEFT JOIN categories cat1 ON cat1.id = e.category1_id LEFT JOIN categories cat2 ON cat2.id = e.category2_id WHERE e.company_id = ?`, [company_id],
@@ -399,6 +400,21 @@ module.exports = {
         return new Promise((resolve, reject) => {
             pool.query(
                 `INSERT INTO companies(company_name, connection_id, tenant_id, company_type, industry_type, type, currency, user_id, create_date) VALUES (? ,?, ?, ?, ?, ?, ?, ?, ?)`, [company_name, connection_id, tenant_id, company_type, industry_type, type, currency, user_id, create_date],
+                (error, results, fields) => {
+                    if (error) {
+                        console.log(error);
+                        return reject(error);
+                    }
+                    return resolve(results);
+                }
+            );
+        })
+    },
+    updateCompany: (tenant_id, company_name, company_type, industry_type) => {
+        console.log(`UPDATE companies SET company_name = ${company_name}, company_type = ${company_type}, industry_type = ${industry_type} WHERE tenant_id = ${tenant_id}`)
+        return new Promise((resolve, reject) => {
+            pool.query(
+                `UPDATE companies SET company_name = ?, company_type = ?, industry_type = ? WHERE tenant_id = ?`, [company_name, company_type, industry_type, tenant_id],
                 (error, results, fields) => {
                     if (error) {
                         console.log(error);
